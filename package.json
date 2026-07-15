@@ -1,0 +1,24 @@
+{
+  "name": "splitflik-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SplitFlik backend kit: Supabase schema, receipt-parsing API, money engine and typed client SDK for building your own frontend.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
+    "@supabase/supabase-js": "^2.110.5",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/react": "^18.3.12",
+    "@vercel/node": "^5.8.24",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0"
+  }
+}
