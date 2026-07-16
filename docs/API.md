@@ -130,12 +130,15 @@ rpc settle_outing(
 
 ### 3.4 Flik is a handoff, not an API
 
-There is **no public NLB/Flik consumer API or deep link**. Frontends must
-never claim to send payments, poll payment status, or call NLB endpoints.
-The only allowed integration (see `src/lib/flik.ts`): copy the plain amount
-(`"12,15"`) to the clipboard, show the payee's phone number, link to the
-NLB Pay store pages — and keep the Slovenian disclaimer (`FLIK_DISCLAIMER`)
-visible on the handoff UI at all times. Never render or accept card data.
+There is **no public NLB/Flik consumer API or deep link** — NLB Pay cannot be
+opened with recipient/amount/reason pre-filled, so the app hands off instead of
+auto-filling. Frontends must never claim to send payments, poll payment status,
+or call NLB endpoints. The only allowed integration (see `src/lib/flik.ts`):
+one-tap **copy** the recipient's phone number, the plain amount (`"12,15"`) and
+the payment reason to the clipboard (`copyText`/`copyAmount`), link to the NLB
+Pay store pages, and show short "paste it in NLB Pay" steps — while keeping the
+Slovenian disclaimer (`FLIK_DISCLAIMER`) visible at all times. Never render or
+accept card data.
 
 ## 4. `POST /api/parse-receipt`
 

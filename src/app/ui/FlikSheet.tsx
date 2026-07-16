@@ -6,6 +6,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import {
   copyAmount,
+  copyText,
   detectPlatform,
   FLIK_DISCLAIMER,
   NLB_PAY_APP_STORE_URL,
@@ -20,6 +21,8 @@ export interface FlikTarget {
   toName: string;
   toPhone?: string;
   amountCents: number;
+  /** Payment reason/purpose to copy into NLB Pay (defaults to a SplitFlik note). */
+  reason?: string;
   /** When present, the sheet offers "mark as paid" → markSettlementPaid. */
   settlementId?: string;
 }
@@ -52,9 +55,20 @@ export function FlikProvider({ children }: { children: ReactNode }) {
 }
 
 function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => void }) {
+  const reason = target.reason?.trim() || 'Poravnava (SplitFlik)';
+
   const onCopy = async () => {
     const ok = await copyAmount(target.amountCents);
-    store.toast(ok ? 'Znesek kopiran v odložišče' : 'Kopiranje ni uspelo');
+    store.toast(ok ? 'Znesek kopiran' : 'Kopiranje ni uspelo');
+  };
+  const onCopyPhone = async () => {
+    if (!target.toPhone) return;
+    const ok = await copyText(target.toPhone);
+    store.toast(ok ? 'Številka kopirana' : 'Kopiranje ni uspelo');
+  };
+  const onCopyReason = async () => {
+    const ok = await copyText(reason);
+    store.toast(ok ? 'Razlog kopiran' : 'Kopiranje ni uspelo');
   };
 
   const onMarkPaid = () => {
@@ -125,6 +139,7 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
           </button>
         </div>
 
+        {/* Recipient — number is copyable for pasting into the Flik form */}
         <div
           style={{
             display: 'flex',
@@ -134,7 +149,7 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
             border: '1px solid var(--border)',
             borderRadius: 20,
             padding: '14px 16px',
-            marginBottom: 14,
+            marginBottom: 12,
           }}
         >
           <Avatar name={target.toName} size={46} />
@@ -143,18 +158,19 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
               Prejemnik
             </div>
             <div style={{ font: '600 16px/1.2 Rubik', color: 'var(--text)' }}>{target.toName}</div>
-            {target.toPhone ? (
-              <div style={{ font: '400 13px/1.3 Rubik', color: 'var(--text-sec)', marginTop: 2 }}>
-                {formatPhone(target.toPhone)}
-              </div>
-            ) : (
-              <div style={{ font: '400 13px/1.3 Rubik', color: 'var(--text-sec)', marginTop: 2 }}>
-                Telefon ni na voljo
-              </div>
-            )}
+            <div style={{ font: '400 13px/1.3 Rubik', color: 'var(--text-sec)', marginTop: 2 }}>
+              {target.toPhone ? formatPhone(target.toPhone) : 'Telefon ni na voljo'}
+            </div>
           </div>
+          {target.toPhone ? (
+            <Button variant="secondary" onClick={onCopyPhone} style={{ flexShrink: 0 }}>
+              <IconCopy size={15} color="var(--link)" strokeWidth={2} />
+              Kopiraj
+            </Button>
+          ) : null}
         </div>
 
+        {/* Amount */}
         <div
           style={{
             display: 'flex',
@@ -164,21 +180,64 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
             border: '1px solid var(--border)',
             borderRadius: 20,
             padding: '16px',
-            marginBottom: 14,
+            marginBottom: 12,
           }}
         >
           <div>
             <div style={{ font: '400 12px/1.2 Rubik', color: 'var(--text-sec)', marginBottom: 5 }}>
               Znesek
             </div>
-            <div style={{ font: '700 26px/1 Rubik', color: 'var(--text)' }}>
+            <div style={{ font: '700 24px/1 Rubik', color: 'var(--text)' }}>
               {formatEur(target.amountCents)}
             </div>
           </div>
           <Button variant="secondary" onClick={onCopy}>
-            <IconCopy size={16} color="var(--link)" strokeWidth={2} />
+            <IconCopy size={15} color="var(--link)" strokeWidth={2} />
             Kopiraj
           </Button>
+        </div>
+
+        {/* Reason / purpose */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 20,
+            padding: '16px',
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ font: '400 12px/1.2 Rubik', color: 'var(--text-sec)', marginBottom: 5 }}>
+              Razlog
+            </div>
+            <div style={{ font: '600 15px/1.2 Rubik', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {reason}
+            </div>
+          </div>
+          <Button variant="secondary" onClick={onCopyReason} style={{ flexShrink: 0 }}>
+            <IconCopy size={15} color="var(--link)" strokeWidth={2} />
+            Kopiraj
+          </Button>
+        </div>
+
+        {/* How-to steps — NLB Pay has no auto-fill deep link, so we hand off cleanly */}
+        <div
+          style={{
+            font: '400 12.5px/1.6 Rubik',
+            color: 'var(--text-sec)',
+            background: 'var(--surface3)',
+            borderRadius: 14,
+            padding: '12px 14px',
+            marginBottom: 12,
+          }}
+        >
+          1. Odpri NLB Pay in izberi <b style={{ color: 'var(--text)' }}>Flik plačilo</b>.<br />
+          2. Prilepi <b style={{ color: 'var(--text)' }}>številko prejemnika</b>, <b style={{ color: 'var(--text)' }}>znesek</b> in <b style={{ color: 'var(--text)' }}>razlog</b> (gumbi »Kopiraj« zgoraj).
         </div>
 
         <a

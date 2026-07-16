@@ -648,6 +648,7 @@ function StepSent({
                         toName: nameOf(s.toId),
                         ...(phoneOf(s.toId) ? { toPhone: phoneOf(s.toId) as string } : {}),
                         amountCents: s.amountCents,
+                        reason: outing.name,
                         settlementId: s.id,
                       })
                     }

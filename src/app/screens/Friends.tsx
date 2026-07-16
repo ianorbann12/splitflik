@@ -107,7 +107,7 @@ export function Friends() {
                     {owes ? (
                       <Button
                         variant="pay"
-                        onClick={() => flik.open({ toName: f.name ?? formatPhone(f.phone), toPhone: f.phone, amountCents: -bal })}
+                        onClick={() => flik.open({ toName: f.name ?? formatPhone(f.phone), toPhone: f.phone, amountCents: -bal, reason: 'Poravnava (SplitFlik)' })}
                       >
                         Plačaj
                       </Button>

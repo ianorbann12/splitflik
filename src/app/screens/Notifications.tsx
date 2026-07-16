@@ -42,6 +42,7 @@ export function Notifications() {
   }, [userId, myPhone]);
 
   const phoneOf = (id: string) => state.people.find((p) => p.id === id)?.phone;
+  const outingNameOf = (id: string) => state.outings.find((o) => o.id === id)?.name;
 
   const label = (n: Notif): string => {
     const who = firstName(n.otherName);
@@ -170,6 +171,7 @@ export function Notifications() {
                           toName: n.otherName,
                           ...(phoneOf(n.otherId) ? { toPhone: phoneOf(n.otherId) as string } : {}),
                           amountCents: n.amountCents,
+                          reason: outingNameOf(n.settlement.outingId) ?? 'Poravnava (SplitFlik)',
                           settlementId: n.settlement.id,
                         })
                       }

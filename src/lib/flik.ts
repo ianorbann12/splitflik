@@ -33,3 +33,13 @@ export async function copyAmount(cents: number): Promise<boolean> {
     return false;
   }
 }
+
+/** Copies arbitrary text (recipient phone, payment reason) to the clipboard. */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
