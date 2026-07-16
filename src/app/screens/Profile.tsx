@@ -5,7 +5,7 @@ import type { Person } from '../../types';
 import { useSession, useStore } from '../data/store';
 import { store } from '../data/store';
 import { fileToAvatarDataUrl } from '../data/image';
-import { setLocalProfile } from '../data/profile';
+import { getLocalProfile, setLocalProfile } from '../data/profile';
 import { currencySymbol, formatPhone, normalizePhone, SUPPORTED_CURRENCIES } from '../format';
 import { initials } from '../data/people';
 import { useTheme, type Theme } from '../theme';
@@ -19,6 +19,13 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
   const meId = session?.personId ?? '';
   const me = state.people.find((p) => p.id === meId);
   const group = state.group;
+  // Fall back to the local profile (set at registration) so a freshly-registered
+  // user without an active group still sees their own name/phone/photo here.
+  const local = getLocalProfile();
+  const userId = typeof state.authUserId === 'string' ? state.authUserId : '';
+  const dispName = me?.name ?? local?.name ?? '';
+  const dispPhone = me?.phone ?? local?.phone ?? '';
+  const dispAvatar = me?.avatarUrl ?? local?.avatarUrl;
   const { theme, setTheme } = useTheme();
   const [editing, setEditing] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -35,8 +42,8 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
   };
 
   const infoRows: { label: string; value: string; onClick?: () => void }[] = [
-    { label: 'Ime in priimek', value: me?.name ?? '—' },
-    { label: 'Telefon', value: me?.phone ? formatPhone(me.phone) : '—' },
+    { label: 'Ime in priimek', value: dispName || '—' },
+    { label: 'Telefon', value: dispPhone ? formatPhone(dispPhone) : '—' },
     { label: 'Skupina', value: group?.name ?? '—' },
     { label: 'Vabilna koda', value: group?.inviteCode ?? '—', onClick: copyInvite },
   ];
@@ -47,7 +54,7 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ position: 'relative' }}>
-          <Avatar name={me?.name ?? ''} id={meId} size={92} text={initials(me?.name ?? '?')} {...(me?.avatarUrl ? { src: me.avatarUrl } : {})} />
+          <Avatar name={dispName} id={meId || userId || 'me'} size={92} text={initials(dispName || '?')} {...(dispAvatar ? { src: dispAvatar } : {})} />
           <button
             onClick={() => setEditing(true)}
             aria-label="Uredi profil"
@@ -69,7 +76,7 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
             <IconPencil size={14} color="var(--accent)" strokeWidth={2} />
           </button>
         </div>
-        <div style={{ font: '600 18px/1.2 Rubik', color: 'var(--text)', marginTop: 12 }}>{me?.name ?? 'Uporabnik'}</div>
+        <div style={{ font: '600 18px/1.2 Rubik', color: 'var(--text)', marginTop: 12 }}>{dispName || 'Uporabnik'}</div>
       </div>
 
       <SectionLabel>Videz</SectionLabel>
@@ -139,7 +146,14 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
         Odjava
       </Button>
 
-      {editing && me ? <ProfileEditSheet me={me} onClose={() => setEditing(false)} /> : null}
+      {editing ? (
+        <ProfileEditSheet
+          initial={{ name: dispName, phone: dispPhone, ...(dispAvatar ? { avatarUrl: dispAvatar } : {}) }}
+          me={me ?? null}
+          userId={userId}
+          onClose={() => setEditing(false)}
+        />
+      ) : null}
 
       {currencyOpen && group ? (
         <BottomSheet title="Valuta skupine" onClose={() => setCurrencyOpen(false)}>
@@ -173,12 +187,23 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
   );
 }
 
-function ProfileEditSheet({ me, onClose }: { me: Person; onClose: () => void }) {
-  const [name, setName] = useState(me.name);
-  const [phone, setPhone] = useState(me.phone ?? '');
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(me.avatarUrl);
+function ProfileEditSheet({
+  initial,
+  me,
+  userId,
+  onClose,
+}: {
+  initial: { name: string; phone: string; avatarUrl?: string };
+  me: Person | null;
+  userId: string;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(initial.name);
+  const [phone, setPhone] = useState(initial.phone);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initial.avatarUrl);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const avatarId = me?.id ?? userId ?? 'me';
 
   const pickImage = async (file: File) => {
     setBusy(true);
@@ -199,22 +224,33 @@ function ProfileEditSheet({ me, onClose }: { me: Person; onClose: () => void }) 
       if (!n) return store.toast('Telefonska številka ni veljavna.');
       normalized = n;
     }
-    store.savePerson(
-      {
-        id: me.id,
-        groupId: me.groupId,
-        name: name.trim(),
-        ...(normalized ? { phone: normalized } : {}),
-        ...(me.claimedBy ? { claimedBy: me.claimedBy } : {}),
-        ...(avatarUrl ? { avatarUrl } : {}),
-      },
-      false,
-    );
+    // Update the group roster entry only when there is one.
+    if (me) {
+      store.savePerson(
+        {
+          id: me.id,
+          groupId: me.groupId,
+          name: name.trim(),
+          ...(normalized ? { phone: normalized } : {}),
+          ...(me.claimedBy ? { claimedBy: me.claimedBy } : {}),
+          ...(avatarUrl ? { avatarUrl } : {}),
+        },
+        false,
+      );
+    }
     setLocalProfile({
       name: name.trim(),
-      phone: normalized ?? me.phone ?? '',
+      phone: normalized ?? initial.phone ?? '',
       ...(avatarUrl ? { avatarUrl } : {}),
     });
+    // Keep the canonical server profile in sync (best-effort).
+    if (userId) {
+      void store.updateProfile(userId, {
+        name: name.trim(),
+        ...(normalized ? { phone: normalized } : {}),
+        ...(avatarUrl ? { avatarUrl } : {}),
+      });
+    }
     store.toast('Profil posodobljen');
     onClose();
   };
@@ -222,7 +258,7 @@ function ProfileEditSheet({ me, onClose }: { me: Person; onClose: () => void }) 
   return (
     <BottomSheet title="Uredi profil" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <Avatar name={name} id={me.id} size={80} {...(avatarUrl ? { src: avatarUrl } : {})} />
+        <Avatar name={name} id={avatarId} size={80} {...(avatarUrl ? { src: avatarUrl } : {})} />
         <input
           ref={fileRef}
           type="file"

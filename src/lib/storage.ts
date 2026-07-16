@@ -430,6 +430,12 @@ async function saveProfile(userId: string, profile: UserProfile): Promise<void> 
   );
 }
 
+/** Updates the canonical profile (best-effort; used when editing on the Profile tab). */
+export async function updateProfile(userId: string, profile: UserProfile): Promise<void> {
+  if (!userId) return;
+  await saveProfile(userId, profile);
+}
+
 /**
  * Registers a new account. Returns 'phone_taken' if the phone already belongs to
  * another user, 'confirm' when email confirmation is required, else 'ok'.

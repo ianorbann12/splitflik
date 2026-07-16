@@ -23,6 +23,7 @@ export interface StoreApi {
   authSignIn(email: string, password: string): Promise<string | null>;
   authSignOut(): Promise<void>;
   fetchProfile(userId: string): Promise<{ name?: string; phone?: string; avatarUrl?: string } | null>;
+  updateProfile(userId: string, profile: { name?: string; phone?: string; avatarUrl?: string }): Promise<void>;
   initGroup(groupId: string): Promise<void>;
   teardownGroup(): void;
   refetch(): Promise<void>;

@@ -121,6 +121,10 @@ export async function fetchProfile(): Promise<{ name?: string; phone?: string; a
   return null;
 }
 
+export async function updateProfile(): Promise<void> {
+  // no-op in demo
+}
+
 export async function authSignOut(): Promise<void> {
   // keep the demo user; the group session is what the gate clears
 }

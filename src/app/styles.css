@@ -131,8 +131,11 @@ button {
   position: relative;
   width: 100%;
   max-width: 440px;
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* Definite height (not min-height) so the flex column resolves and the inner
+     panel scrolls internally — this keeps the bottom nav pinned to the bottom
+     of the viewport on mobile (dynamic-toolbar-safe via dvh). */
+  height: 100vh;
+  height: 100dvh;
   background: var(--bg);
   color: var(--text);
   display: flex;
