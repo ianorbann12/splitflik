@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Deli — bill-splitting app for friend groups (Vite + React frontend on the SplitFlik backend kit: Supabase, receipt-parsing API, money engine and typed client SDK).",
+  "description": "SplitFlik — bill-splitting app for friend groups (Vite + React frontend on the SplitFlik backend kit: Supabase, receipt-parsing API, money engine and typed client SDK).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -1,4 +1,4 @@
-// Shared UI primitives for Deli. Styling mirrors the prototype's tokens; every
+// Shared UI primitives for SplitFlik. Styling mirrors the prototype's tokens; every
 // colour is a CSS variable so both themes work. Components accept a `style`
 // escape hatch for the many one-off layouts in the design.
 import type {
@@ -332,7 +332,7 @@ export function EmptyState({
 export function Spinner({ size = 20, color = 'var(--link)' }: { size?: number; color?: string }) {
   return (
     <span
-      className="deli-spin"
+      className="splitflik-spin"
       style={{
         width: size,
         height: size,
@@ -370,12 +370,12 @@ export function BottomSheet({
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-end',
-        animation: 'deli-fade 0.2s ease',
+        animation: 'splitflik-fade 0.2s ease',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="deli-scroll"
+        className="splitflik-scroll"
         style={{
           width: '100%',
           maxWidth: 440,
@@ -386,7 +386,7 @@ export function BottomSheet({
           borderTopRightRadius: 26,
           borderTop: '1px solid var(--border-soft)',
           padding: '10px 20px calc(env(safe-area-inset-bottom, 0px) + 24px)',
-          animation: 'deli-slideup 0.28s cubic-bezier(0.22,1,0.36,1)',
+          animation: 'splitflik-slideup 0.28s cubic-bezier(0.22,1,0.36,1)',
         }}
       >
         <div style={{ width: 40, height: 4, borderRadius: 9999, background: 'var(--border)', margin: '4px auto 14px' }} />
@@ -428,7 +428,7 @@ export function Sheet({
         background: 'var(--bg)',
         display: 'flex',
         flexDirection: 'column',
-        animation: 'deli-slide 0.28s cubic-bezier(0.22,1,0.36,1)',
+        animation: 'splitflik-slide 0.28s cubic-bezier(0.22,1,0.36,1)',
       }}
     >
       <div
@@ -460,7 +460,7 @@ export function Sheet({
         </button>
         <div style={{ font: '600 18px/1.2 Rubik', color: 'var(--text)' }}>{title}</div>
       </div>
-      <div className="deli-scroll" style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+      <div className="splitflik-scroll" style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
         {children}
       </div>
     </div>

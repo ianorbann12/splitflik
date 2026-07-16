@@ -1,10 +1,10 @@
-# CLAUDE.md — SplitFlik + Deli
+# CLAUDE.md — SplitFlik + SplitFlik
 
 This repo has two halves:
 
 1. The **backend + SDK kit**: Supabase schema, the receipt-parsing serverless
    function, the money engine, and the typed client SDK. Contracts: `docs/API.md`.
-2. **Deli** — the reference frontend (Vite + React + TS SPA) under `src/app/`,
+2. **SplitFlik** — the reference frontend (Vite + React + TS SPA) under `src/app/`,
    built from the `Deli.dc.html` design. It renders the whole product on top of
    the SDK and never touches Supabase directly (all data goes through
    `src/app/data/store.ts`, which delegates to `src/lib/storage.ts` or an

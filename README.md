@@ -1,11 +1,11 @@
-# SplitFlik + Deli
+# SplitFlik + SplitFlik
 
 A bill-splitting app for friend groups, with **Flik (NLB Pay) settlement handoff**
 and **AI receipt scanning**. This repo now contains both halves:
 
 - **Backend kit** — Supabase schema, the receipt-parsing serverless function, the
   pure money engine, and the typed client SDK.
-- **Deli** — the reference frontend: a mobile-first **Vite + React + TypeScript**
+- **SplitFlik** — the reference frontend: a mobile-first **Vite + React + TypeScript**
   SPA (Slovenian UI) that renders the whole product on top of that SDK.
 
 ```
@@ -14,11 +14,11 @@ api/parse-receipt.ts  # Vercel serverless: receipt photo → structured items (A
 src/types.ts          # domain types — the single source of truth
 src/engine/           # pure, tested money math: splits, rounding, balances, settlement, stats
 src/lib/              # typed client SDK: Supabase adapter, auth, identity/invites, sl-SI formatting, Flik
-src/app/              # Deli frontend — screens, UI kit, theming, data selectors (see below)
+src/app/              # SplitFlik frontend — screens, UI kit, theming, data selectors (see below)
 docs/API.md           # contracts for frontend builders
 ```
 
-## The Deli frontend (`src/app/`)
+## The SplitFlik frontend (`src/app/`)
 
 Mobile-first, dark ("Glossy") + light themes, Rubik type, lime accent — implemented
 from the `Deli.dc.html` design. Everything talks to the backend through one facade
@@ -59,7 +59,7 @@ fixture). Every screen and the full settle flow work offline. Set the
 
 ```bash
 npm install
-npm run dev          # Deli frontend at http://localhost:5173 (demo mode without env)
+npm run dev          # SplitFlik frontend at http://localhost:5173 (demo mode without env)
 npm run build        # production build → dist/
 npm test             # engine/SDK/API tests (Vitest, 74)
 npm run typecheck    # app + api tsconfigs

@@ -119,7 +119,7 @@ export function AppShell({
           {NAV_ORDER.map((t) => (
             <div
               key={t}
-              className="deli-scroll"
+              className="splitflik-scroll"
               style={{ width: '20%', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
             >
               {panels[t]}

@@ -1,4 +1,4 @@
-// Theme = the two looks the Deli prototype's Profile toggle exposes:
+// Theme = the two looks the SplitFlik prototype's Profile toggle exposes:
 // "Svetlo" (light) and "Glossy dark". Tokens live in styles.css keyed by the
 // data-theme attribute on <html>; this provider just flips that attribute and
 // remembers the choice.
@@ -13,7 +13,7 @@ import {
 
 export type Theme = 'light' | 'glossy';
 
-const STORAGE_KEY = 'deli:theme';
+const STORAGE_KEY = 'splitflik:theme';
 
 function readStoredTheme(): Theme {
   try {

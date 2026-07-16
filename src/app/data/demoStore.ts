@@ -5,7 +5,7 @@
 import type { AppState } from '../../lib/storage';
 import type { Group, Outing, Person, Settlement, SettlementDraft } from '../../types';
 import type { Expense } from '../../types';
-import { buildDemoData, DEMO_AUTH_USER } from './demoSeed';
+import { buildDemoData, DEMO_AUTH_USER, DEMO_INVITE_CODE } from './demoSeed';
 
 function seededState(): AppState {
   const data = buildDemoData();
@@ -133,7 +133,7 @@ export async function createGroup(
 export async function fetchGroupByInvite(
   inviteCode: string,
 ): Promise<{ group: Group; people: Person[] } | null> {
-  if (inviteCode === 'delidemokoda01') {
+  if (inviteCode === DEMO_INVITE_CODE) {
     const data = buildDemoData();
     return { group: data.group, people: data.people };
   }

@@ -18,7 +18,7 @@ export function ToastHost() {
         padding: '12px 20px',
         borderRadius: 9999,
         zIndex: 80,
-        animation: 'deli-toast 0.25s ease',
+        animation: 'splitflik-toast 0.25s ease',
         boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
         maxWidth: '84%',
         textAlign: 'center',

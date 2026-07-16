@@ -4,7 +4,7 @@ import { FlikProvider } from './ui/FlikSheet';
 import { AppShell, type Tab } from './ui/AppShell';
 import { ToastHost } from './ui/Toast';
 import { Button, Spinner } from './ui/kit';
-import { DeliLogo } from './auth/GateLayout';
+import { SplitFlikLogo } from './auth/GateLayout';
 import { ActivityFlow } from './screens/activity/ActivityFlow';
 import { AuthGate } from './auth/AuthGate';
 import { GroupGate } from './auth/GroupGate';
@@ -58,7 +58,7 @@ function ErrorScreen() {
           textAlign: 'center',
         }}
       >
-        <DeliLogo size={40} />
+        <SplitFlikLogo size={40} />
         <div style={{ font: '600 18px/1.3 Rubik', color: 'var(--text)' }}>Nalaganje ni uspelo</div>
         <div style={{ font: '400 14px/1.5 Rubik', color: 'var(--text-sec)' }}>
           Podatkov skupine ni bilo mogoče naložiti. Preveri povezavo in poskusi znova.
@@ -96,7 +96,7 @@ function Splash() {
           gap: 20,
         }}
       >
-        <DeliLogo size={44} />
+        <SplitFlikLogo size={44} />
         <Spinner />
       </div>
     </div>

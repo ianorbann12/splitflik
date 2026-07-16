@@ -3,7 +3,7 @@
 // badge. Persisted in localStorage; subscribable for useSyncExternalStore.
 import { useSyncExternalStore } from 'react';
 
-const READ_KEY = 'deli:notifReadAt';
+const READ_KEY = 'splitflik:notifReadAt';
 
 let notifReadAt: number | null = null;
 const listeners = new Set<() => void>();

@@ -202,7 +202,7 @@ export function StepAssign({
     try {
       computeShares(expense); // validate against the engine before persisting
     } catch {
-      return store.toast('Delitev ni veljavna. Preveri zneske.');
+      return store.toast('SplitFliktev ni veljavna. Preveri zneske.');
     }
 
     store.saveExpense(expense, !editingExpense);

@@ -1,5 +1,5 @@
 /* ============================================================================
-   Deli — design tokens & base styles.
+   SplitFlik — design tokens & base styles.
    Token values lifted verbatim from the Deli.dc.html prototype's themePage():
    two themes, Light and Glossy dark (the two the Profile toggle exposes).
    ========================================================================== */
@@ -100,12 +100,12 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* hide scrollbars on scroll regions (matches prototype .deli-scroll) */
-.deli-scroll::-webkit-scrollbar {
+/* hide scrollbars on scroll regions (matches prototype .splitflik-scroll) */
+.splitflik-scroll::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
-.deli-scroll {
+.splitflik-scroll {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -164,7 +164,7 @@ button {
 
 /* ---------------------------- animations -------------------------------- */
 
-@keyframes deli-pop {
+@keyframes splitflik-pop {
   0% {
     transform: scale(0);
     opacity: 0;
@@ -177,7 +177,7 @@ button {
     opacity: 1;
   }
 }
-@keyframes deli-slide {
+@keyframes splitflik-slide {
   from {
     transform: translateX(100%);
   }
@@ -185,7 +185,7 @@ button {
     transform: translateX(0);
   }
 }
-@keyframes deli-toast {
+@keyframes splitflik-toast {
   from {
     transform: translate(-50%, 14px);
     opacity: 0;
@@ -195,7 +195,7 @@ button {
     opacity: 1;
   }
 }
-@keyframes deli-fade {
+@keyframes splitflik-fade {
   from {
     opacity: 0;
   }
@@ -203,7 +203,7 @@ button {
     opacity: 1;
   }
 }
-@keyframes deli-slideup {
+@keyframes splitflik-slideup {
   from {
     transform: translateY(100%);
   }
@@ -211,14 +211,14 @@ button {
     transform: translateY(0);
   }
 }
-@keyframes deli-spin {
+@keyframes splitflik-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-.deli-spin {
-  animation: deli-spin 0.8s linear infinite;
+.splitflik-spin {
+  animation: splitflik-spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

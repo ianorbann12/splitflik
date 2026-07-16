@@ -1,10 +1,10 @@
 // Shared frame for the pre-app gates (auth + group). Centered card inside the
-// phone frame, Deli wordmark, and a light/dark toggle so the look can be set
+// phone frame, SplitFlik wordmark, and a light/dark toggle so the look can be set
 // before signing in.
 import type { ReactNode } from 'react';
 import { useTheme } from '../theme';
 
-export function DeliLogo({ size = 34 }: { size?: number }) {
+export function SplitFlikLogo({ size = 34 }: { size?: number }) {
   return (
     <div
       style={{
@@ -19,7 +19,7 @@ export function DeliLogo({ size = 34 }: { size?: number }) {
         borderRadius: 9999,
       }}
     >
-      Deli
+      SplitFlik
     </div>
   );
 }
@@ -39,7 +39,7 @@ export function GateLayout({
   return (
     <div className="app-frame">
       <div
-        className="deli-scroll"
+        className="splitflik-scroll"
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -49,7 +49,7 @@ export function GateLayout({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <DeliLogo />
+          <SplitFlikLogo />
           <button
             onClick={toggleTheme}
             style={{

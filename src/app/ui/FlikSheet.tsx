@@ -1,4 +1,4 @@
-// Flik / NLB Pay handoff (backend rule 4, docs/API.md §3.4): Deli NEVER sends a
+// Flik / NLB Pay handoff (backend rule 4, docs/API.md §3.4): SplitFlik NEVER sends a
 // payment or calls any NLB endpoint. This sheet only shows the payee + amount,
 // copies the plain amount to the clipboard, links to the NLB Pay store page,
 // and keeps the Slovenian disclaimer visible. The user pays in NLB Pay itself
@@ -76,12 +76,12 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-end',
-        animation: 'deli-fade 0.2s ease',
+        animation: 'splitflik-fade 0.2s ease',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="deli-scroll"
+        className="splitflik-scroll"
         style={{
           width: '100%',
           maxWidth: 440,
@@ -92,7 +92,7 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
           borderTopRightRadius: 26,
           borderTop: '1px solid var(--border-soft)',
           padding: '10px 20px calc(env(safe-area-inset-bottom, 0px) + 24px)',
-          animation: 'deli-slideup 0.28s cubic-bezier(0.22,1,0.36,1)',
+          animation: 'splitflik-slideup 0.28s cubic-bezier(0.22,1,0.36,1)',
         }}
       >
         <div

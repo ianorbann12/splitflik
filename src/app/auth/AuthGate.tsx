@@ -67,7 +67,7 @@ export function AuthGate() {
   return (
     <GateLayout
       title={mode === 'signin' ? 'Dobrodošel nazaj' : 'Ustvari račun'}
-      subtitle="Skeniraj račun, dodeli, kdo je kaj imel, in Deli izračuna, kdo komu koliko dolguje."
+      subtitle="Skeniraj račun, dodeli, kdo je kaj imel, in SplitFlik izračuna, kdo komu koliko dolguje."
     >
       <Segmented<AuthMode>
         variant="block"

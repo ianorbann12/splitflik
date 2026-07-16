@@ -176,11 +176,11 @@ function StepNew({
   };
 
   const shareLink = async () => {
-    const text = `Pridruži se naši skupini "${group.name}" v aplikaciji Deli: ${url}`;
+    const text = `Pridruži se naši skupini "${group.name}" v aplikaciji SplitFlik: ${url}`;
     const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string; url?: string }) => Promise<void> };
     if (nav.share) {
       try {
-        await nav.share({ title: 'Deli', text, url });
+        await nav.share({ title: 'SplitFlik', text, url });
         return;
       } catch {
         // fell through to clipboard
@@ -255,7 +255,7 @@ function StepNew({
       </Card>
 
       <Button variant="primary" full onClick={shareLink} style={{ marginBottom: 10 }}>
-        <IconShare size={17} color="var(--on-accent)" strokeWidth={2} /> Deli povezavo
+        <IconShare size={17} color="var(--on-accent)" strokeWidth={2} /> SplitFlik povezavo
       </Button>
       <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
         <Button variant="secondary" full onClick={() => openExternal(`https://wa.me/?text=${encodeURIComponent(url)}`)} style={{ borderRadius: 12, padding: 12, font: '500 13px/1 Rubik' }}>
@@ -366,7 +366,7 @@ function StepActivity({
       <div style={{ font: '600 15px/1 Rubik', color: 'var(--text)', marginBottom: 11 }}>
         Udeleženci · {participants.length}
       </div>
-      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, marginBottom: 22 }} className="deli-scroll">
+      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, marginBottom: 22 }} className="splitflik-scroll">
         {participants.map((p) => (
           <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0, width: 58 }}>
             <Avatar name={p.name} id={p.id} size={48} />
@@ -531,7 +531,7 @@ function StepSent({
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: 18,
-            animation: 'deli-pop 0.5s cubic-bezier(0.22,1,0.36,1)',
+            animation: 'splitflik-pop 0.5s cubic-bezier(0.22,1,0.36,1)',
           }}
         >
           <IconCheck size={44} color="var(--pos)" strokeWidth={2.6} />

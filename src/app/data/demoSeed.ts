@@ -19,7 +19,7 @@ const DAY = 86_400_000;
 
 export const DEMO_ME_ID = 'nina';
 export const DEMO_AUTH_USER = 'demo-user';
-export const DEMO_INVITE_CODE = 'delidemokoda01';
+export const DEMO_INVITE_CODE = 'splitflikdemo01';
 
 /** Session that drops you straight into the seeded demo group. */
 export const DEMO_SESSION: GroupSession = {
