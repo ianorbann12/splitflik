@@ -3,6 +3,8 @@
 // invite code is the real access boundary (docs/API.md §2).
 import { useState } from 'react';
 import { store } from '../data/store';
+import { setLocalProfile } from '../data/profile';
+import { normalizePhone } from '../format';
 import { Button, Segmented, TextField } from '../ui/kit';
 import { GateLayout } from './GateLayout';
 
@@ -12,6 +14,8 @@ export function AuthGate() {
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -22,10 +26,26 @@ export function AuthGate() {
       setError('Vnesi e-pošto in geslo.');
       return;
     }
+    // Registration captures the profile (name + phone) so joining a group later
+    // pulls your name automatically — you never re-enter it.
+    let normalizedPhone: string | null = null;
+    if (mode === 'signup') {
+      if (!name.trim()) {
+        setError('Vnesi svoje ime in priimek.');
+        return;
+      }
+      normalizedPhone = normalizePhone(phone);
+      if (!normalizedPhone) {
+        setError('Vnesi veljavno telefonsko številko.');
+        return;
+      }
+    }
     setBusy(true);
     try {
       if (mode === 'signup') {
         const result = await store.authSignUp(email.trim(), password);
+        // Save the profile regardless of email-confirmation state (it's local).
+        setLocalProfile({ name: name.trim(), phone: normalizedPhone as string });
         if (result === 'confirm') {
           setConfirm(true);
           return;
@@ -92,6 +112,24 @@ export function AuthGate() {
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {mode === 'signup' ? (
+          <>
+            <TextField
+              autoComplete="name"
+              placeholder="Ime in priimek"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <TextField
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="Telefon (npr. 031 123 456)"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </>
+        ) : null}
         <TextField
           type="email"
           inputMode="email"

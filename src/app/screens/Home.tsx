@@ -1,12 +1,12 @@
 // Domov — greeting, active-group switcher, balance summary, recent-activity feed.
 // The active group is optional: with none, we prompt to create or join one.
 import { useSession, useStore } from '../data/store';
-import { friendBalances, recentActivity, summarize } from '../data/derive';
-import { avatarSrcProp, avatarUrlOf, firstName } from '../data/people';
+import { friendBalances, outingExpenses, outingGrandTotal, summarize } from '../data/derive';
+import { firstName } from '../data/people';
 import { getLocalProfile } from '../data/profile';
-import { formatEur, relativeDay } from '../format';
+import { formatEur } from '../format';
 import { PAGE_PADDING } from '../ui/AppShell';
-import { Avatar, Button, Card, EmptyState } from '../ui/kit';
+import { Button, Card, EmptyState } from '../ui/kit';
 import { IconChevronRight, IconReceipt, IconUsers } from '../ui/icons';
 
 function Header({ name, onNewActivity }: { name: string; onNewActivity?: () => void }) {
@@ -80,7 +80,7 @@ export function Home({
 
   const balances = friendBalances(state, meId);
   const { oweCents, waitCents } = summarize(balances);
-  const recent = recentActivity(state, 6);
+  const outings = [...state.outings].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div style={{ padding: PAGE_PADDING }}>
@@ -98,9 +98,9 @@ export function Home({
         </Card>
       </div>
 
-      <div style={{ font: '600 18px/1.2 Rubik', color: 'var(--text)', marginBottom: 12 }}>Zadnje aktivnosti</div>
+      <div style={{ font: '600 18px/1.2 Rubik', color: 'var(--text)', marginBottom: 12 }}>Aktivnosti</div>
 
-      {recent.length === 0 ? (
+      {outings.length === 0 ? (
         <EmptyState
           icon={<IconReceipt size={30} color="var(--text-sec)" />}
           title="Še ni aktivnosti"
@@ -108,20 +108,28 @@ export function Home({
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {recent.map((a) => (
-            <Card key={a.id} onClick={() => onOpenActivity(a.outingId)} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px' }}>
-              <Avatar name={a.payerName} id={a.payerId} size={42} {...avatarSrcProp(avatarUrlOf(state.people, a.payerId))} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: '600 15px/1.25 Rubik', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {firstName(a.payerName)} · {a.description}
+          {outings.map((o) => {
+            const bills = outingExpenses(state, o.id, o.currentCycle);
+            const total = outingGrandTotal(bills);
+            const pc = o.participantIds.length;
+            return (
+              <Card key={o.id} onClick={() => onOpenActivity(o.id)} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconReceipt size={20} color="var(--accent)" strokeWidth={1.8} />
                 </div>
-                <div style={{ font: '400 13px/1.3 Rubik', color: 'var(--text-sec)' }}>
-                  {a.outingName ? `${a.outingName} · ` : ''}plačal {relativeDay(a.createdAt)}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: '600 15px/1.25 Rubik', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {o.name}
+                  </div>
+                  <div style={{ font: '400 13px/1.3 Rubik', color: 'var(--text-sec)' }}>
+                    {pc} {pc === 1 ? 'udeleženec' : 'udeležencev'} ·{' '}
+                    {bills.length === 0 ? 'brez računov' : `${bills.length} ${bills.length === 1 ? 'račun' : 'računov'}`}
+                  </div>
                 </div>
-              </div>
-              <div style={{ font: '600 16px/1 Rubik', color: 'var(--text)' }}>{formatEur(a.amountCents)}</div>
-            </Card>
-          ))}
+                <div style={{ font: '600 16px/1 Rubik', color: 'var(--text)' }}>{formatEur(total)}</div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

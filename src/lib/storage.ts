@@ -18,6 +18,7 @@ import type {
   SplitSpec,
 } from '../types';
 import { STR } from './strings';
+import { setActiveCurrency } from './format';
 
 const CACHE_KEY = 'splitflik:v2:cache';
 
@@ -66,6 +67,8 @@ interface GroupRow {
   id: string;
   name: string;
   invite_code: string;
+  // Optional: absent while the DB column is being rolled out (defaults to EUR).
+  currency?: string | null;
   created_at: string;
 }
 interface PersonRow {
@@ -110,7 +113,13 @@ interface SettlementRow {
 }
 
 export function groupFromRow(r: GroupRow): Group {
-  return { id: r.id, name: r.name, inviteCode: r.invite_code, createdAt: Date.parse(r.created_at) };
+  return {
+    id: r.id,
+    name: r.name,
+    inviteCode: r.invite_code,
+    ...(r.currency ? { currency: r.currency } : {}),
+    createdAt: Date.parse(r.created_at),
+  };
 }
 export function personFromRow(r: PersonRow): Person {
   return {
@@ -347,6 +356,7 @@ export function teardownGroup(): void {
     channel = null;
   }
   activeGroupId = null;
+  setActiveCurrency(null);
   state = { ...initialState, authUserId: state.authUserId };
   writeLocal(CACHE_KEY, null);
   notify();
@@ -407,9 +417,11 @@ export async function refetch(): Promise<void> {
       setState({ status: 'error', group: null });
       return;
     }
+    const group = groupFromRow(g.data as GroupRow);
+    setActiveCurrency(group.currency);
     setState({
       status: 'ready',
-      group: groupFromRow(g.data as GroupRow),
+      group,
       people: ((pe.data ?? []) as PersonRow[]).map(personFromRow),
       outings: ((ou.data ?? []) as OutingRow[]).map(outingFromRow),
       expenses: ((ex.data ?? []) as ExpenseRow[]).map(expenseFromRow),
@@ -446,10 +458,14 @@ export async function createGroup(
   groupName: string,
   inviteCode: string,
   founder: { name: string; phone?: string; claimedBy: string },
+  currency: string = 'EUR',
 ): Promise<{ groupId: string; personId: string }> {
   const groupId = crypto.randomUUID();
   const personId = crypto.randomUUID();
-  await throwing(db().from('groups').insert({ id: groupId, name: groupName, invite_code: inviteCode }));
+  await throwing(
+    db().from('groups').insert({ id: groupId, name: groupName, invite_code: inviteCode, currency }),
+  );
+  setActiveCurrency(currency);
   await throwing(
     db().from('people').insert({
       id: personId,
@@ -615,6 +631,8 @@ export async function addFriend(userId: string, phone: string): Promise<Friend> 
 }
 
 export async function removeFriend(userId: string, phone: string): Promise<void> {
+  // Guard: both keys required — a missing filter would delete every friend row.
+  if (!userId || !phone) throw new Error('removeFriend requires userId and phone');
   await throwing(db().from('friends').delete().eq('owner', userId).eq('phone', phone));
 }
 
@@ -662,6 +680,9 @@ export function savePerson(person: Person, isNew: boolean): void {
 }
 
 export function deletePerson(personId: string): void {
+  // Guard: never issue a delete with an empty id — an undefined filter would
+  // become an unfiltered DELETE that wipes the whole table (CLAUDE.md rule 3).
+  if (!personId) return;
   withRollback(
     { people: state.people.filter((p) => p.id !== personId) },
     () => throwing(db().from('people').delete().eq('id', personId)),
@@ -706,6 +727,7 @@ export function updateOuting(outing: Outing): void {
 }
 
 export function deleteOuting(outingId: string): void {
+  if (!outingId) return; // guard against an unfiltered DELETE (see deletePerson)
   withRollback(
     {
       outings: state.outings.filter((o) => o.id !== outingId),
@@ -732,6 +754,7 @@ export function saveExpense(expense: Expense, isNew: boolean): void {
 }
 
 export function deleteExpense(expenseId: string): void {
+  if (!expenseId) return; // guard against an unfiltered DELETE (see deletePerson)
   withRollback(
     { expenses: state.expenses.filter((e) => e.id !== expenseId) },
     () => throwing(db().from('expenses').delete().eq('id', expenseId)),
@@ -786,5 +809,15 @@ export function markSettlementPaid(settlementId: string): void {
           .update({ status: 'paid', paid_at: new Date(paidAt).toISOString() })
           .eq('id', settlementId),
       ),
+  );
+}
+
+/** Changes the active group's currency (all its amounts render in it). */
+export function setGroupCurrency(groupId: string, currency: string): void {
+  const group = state.group;
+  if (!group || group.id !== groupId) return;
+  setActiveCurrency(currency);
+  withRollback({ group: { ...group, currency } }, () =>
+    throwing(db().from('groups').update({ currency }).eq('id', groupId)),
   );
 }

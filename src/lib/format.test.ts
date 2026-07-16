@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { formatEur, formatEurPlain, formatPhone, normalizePhone, parseEur } from './format';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  currencySymbol,
+  formatEur,
+  formatEurPlain,
+  formatPhone,
+  normalizePhone,
+  parseEur,
+  setActiveCurrency,
+} from './format';
 
 describe('formatEur', () => {
   it('formats cents with a decimal comma and trailing €', () => {
@@ -74,5 +82,29 @@ describe('normalizePhone', () => {
 describe('formatPhone', () => {
   it('formats a normalized number in 3-3-3 groups', () => {
     expect(formatPhone('031123456')).toBe('031 123 456');
+  });
+});
+
+describe('currency', () => {
+  afterEach(() => setActiveCurrency('EUR')); // never leak into other suites
+
+  it('defaults to EUR', () => {
+    expect(currencySymbol()).toBe('€');
+    expect(formatEur(1215)).toMatch(/^12,15\s€$/);
+  });
+
+  it('swaps only the symbol when the active currency changes (amount stays sl-SI)', () => {
+    setActiveCurrency('USD');
+    expect(currencySymbol()).toBe('$');
+    expect(formatEur(123456)).toMatch(/^1\.234,56\s\$$/);
+    setActiveCurrency('GBP');
+    expect(formatEur(500)).toMatch(/^5,00\s£$/);
+  });
+
+  it('falls back to EUR for unknown/empty codes', () => {
+    setActiveCurrency('XyZ');
+    expect(formatEur(100)).toMatch(/^1,00\s€$/);
+    setActiveCurrency(null);
+    expect(formatEur(100)).toMatch(/^1,00\s€$/);
   });
 });

@@ -8,6 +8,7 @@ create table public.groups (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 80),
   invite_code text not null unique check (char_length(invite_code) between 12 and 64),
+  currency text not null default 'EUR' check (char_length(currency) = 3),
   created_at timestamptz not null default now()
 );
 

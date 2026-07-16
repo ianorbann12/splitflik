@@ -2,17 +2,20 @@
 // friends by selection + a shareable link), or join one by special code / phone.
 // Reuses your saved profile so signing in never re-creates a profile.
 import { useEffect, useState } from 'react';
-import type { Group } from '../../types';
-import { normalizePhone } from '../format';
+import type { Group, Person } from '../../types';
+import { currencySymbol, normalizePhone, SUPPORTED_CURRENCIES } from '../format';
 import { getLocalProfile, setLocalProfile } from '../data/profile';
 import { loadFriends, useFriends } from '../data/friends';
 import { avatarSrcProp } from '../data/people';
 import { newInviteCode, setSession, store, useStore } from '../data/store';
-import { Avatar, BottomSheet, Button, FieldLabel, Segmented, TextField } from '../ui/kit';
-import { IconCheck, IconPlus } from '../ui/icons';
+import { Avatar, BottomSheet, Button, FieldLabel, Segmented, Select, TextField } from '../ui/kit';
+import { IconCheck, IconPlus, IconUsers } from '../ui/icons';
 
 type View = 'list' | 'create' | 'join';
 type JoinMethod = 'code' | 'phone';
+
+// A found-but-not-yet-joined group, so we can show its name for confirmation.
+type JoinPreview = { group: Group; people?: Person[]; person?: Person };
 
 function extractCode(raw: string): string {
   const t = raw.trim();
@@ -42,6 +45,7 @@ export function GroupSwitcher({
 
   // create
   const [groupName, setGroupName] = useState('');
+  const [currency, setCurrency] = useState('EUR');
   const [selected, setSelected] = useState<string[]>([]);
   const [myName, setMyName] = useState(profile?.name ?? '');
   const [myPhone, setMyPhone] = useState(profile?.phone ?? '');
@@ -49,6 +53,7 @@ export function GroupSwitcher({
   // join
   const [joinMethod, setJoinMethod] = useState<JoinMethod>('code');
   const [codeInput, setCodeInput] = useState(initialJoinCode ?? '');
+  const [preview, setPreview] = useState<JoinPreview | null>(null);
 
   useEffect(() => {
     void loadFriends(userId);
@@ -77,11 +82,12 @@ export function GroupSwitcher({
     setBusy(true);
     try {
       const inviteCode = newInviteCode();
-      const { groupId, personId } = await store.createGroup(groupName.trim(), inviteCode, {
-        name: id.name,
-        phone: id.phone,
-        claimedBy: userId,
-      });
+      const { groupId, personId } = await store.createGroup(
+        groupName.trim(),
+        inviteCode,
+        { name: id.name, phone: id.phone, claimedBy: userId },
+        currency,
+      );
       const chosen = friends
         .filter((f) => selected.includes(f.phone))
         .map((f) => ({ phone: f.phone, ...(f.name ? { name: f.name } : {}), ...(f.avatarUrl ? { avatarUrl: f.avatarUrl } : {}) }));
@@ -95,38 +101,27 @@ export function GroupSwitcher({
     }
   };
 
-  const joinByCode = async () => {
+  // Step 1: look up the group so we can show its name before joining.
+  const findByCode = async () => {
     setError(null);
     const code = extractCode(codeInput);
     if (code.length < 8) return setError('Koda je prekratka — vsaj 8 znakov.');
-    const id = identity();
-    if (!id) return setError('Vnesi svoje ime in telefonsko številko.');
     setBusy(true);
     try {
       const res = await store.fetchGroupByInvite(code);
       if (!res) {
         setError('Skupine s to kodo ni.');
-        setBusy(false);
         return;
       }
-      const pending = res.people.find((p) => p.phone === id.phone && !p.claimedBy);
-      let personId: string;
-      if (pending) {
-        await store.claimPersonWithName(pending.id, userId, id.name, id.avatarUrl);
-        personId = pending.id;
-      } else {
-        personId = await store.joinAsNewPerson(res.group.id, id.name, id.phone, userId, id.avatarUrl);
-      }
-      setLocalProfile({ name: id.name, phone: id.phone, ...(id.avatarUrl ? { avatarUrl: id.avatarUrl } : {}) });
-      setSession({ groupId: res.group.id, personId, inviteCode: res.group.inviteCode });
-      onClose();
+      setPreview({ group: res.group, people: res.people });
     } catch {
-      setError('Pridružitev ni uspela.');
+      setError('Iskanje ni uspelo.');
+    } finally {
       setBusy(false);
     }
   };
 
-  const joinByPhone = async () => {
+  const findByPhone = async () => {
     setError(null);
     const id = identity();
     if (!id) return setError('Vnesi svoje ime in telefonsko številko.');
@@ -135,12 +130,45 @@ export function GroupSwitcher({
       const res = await store.fetchPendingByPhone(id.phone);
       if (!res) {
         setError('Za tvojo številko ni povabila v skupino.');
-        setBusy(false);
         return;
       }
-      await store.claimPersonWithName(res.person.id, userId, id.name, id.avatarUrl);
+      setPreview({ group: res.group, person: res.person });
+    } catch {
+      setError('Iskanje ni uspelo.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Step 2: confirm and actually join the previewed group.
+  const finalizeJoin = async () => {
+    if (!preview) return;
+    setError(null);
+    const id = identity();
+    if (!id) return setError('Vnesi svoje ime in telefonsko številko.');
+    setBusy(true);
+    try {
+      let personId: string;
+      if (preview.person) {
+        await store.claimPersonWithName(preview.person.id, userId, id.name, id.avatarUrl);
+        personId = preview.person.id;
+      } else {
+        const pending = (preview.people ?? []).find((p) => p.phone === id.phone && !p.claimedBy);
+        if (pending) {
+          await store.claimPersonWithName(pending.id, userId, id.name, id.avatarUrl);
+          personId = pending.id;
+        } else {
+          personId = await store.joinAsNewPerson(
+            preview.group.id,
+            id.name,
+            id.phone,
+            userId,
+            id.avatarUrl,
+          );
+        }
+      }
       setLocalProfile({ name: id.name, phone: id.phone, ...(id.avatarUrl ? { avatarUrl: id.avatarUrl } : {}) });
-      setSession({ groupId: res.group.id, personId: res.person.id, inviteCode: res.group.inviteCode });
+      setSession({ groupId: preview.group.id, personId, inviteCode: preview.group.inviteCode });
       onClose();
     } catch {
       setError('Pridružitev ni uspela.');
@@ -152,7 +180,7 @@ export function GroupSwitcher({
     setSelected((cur) => (cur.includes(phone) ? cur.filter((x) => x !== phone) : [...cur, phone]));
 
   const title = view === 'create' ? 'Nova skupina' : view === 'join' ? 'Pridruži se skupini' : 'Tvoje skupine';
-  const needIdentity = !profile;
+  const needIdentity = !(profile?.name && profile.phone);
 
   return (
     <BottomSheet title={title} onClose={onClose}>
@@ -195,6 +223,19 @@ export function GroupSwitcher({
           <div>
             <FieldLabel>Ime skupine</FieldLabel>
             <TextField placeholder="npr. Kavica ob petkih" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
+          </div>
+          <div>
+            <FieldLabel>Valuta</FieldLabel>
+            <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c} ({currencySymbol(c)})
+                </option>
+              ))}
+            </Select>
+            <div style={{ font: '400 12px/1.4 Rubik', color: 'var(--text-sec)', marginTop: 6 }}>
+              Vsi zneski v tej skupini so v izbrani valuti.
+            </div>
           </div>
           {needIdentity ? (
             <>
@@ -243,49 +284,84 @@ export function GroupSwitcher({
 
       {view === 'join' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Segmented<JoinMethod>
-            value={joinMethod}
-            onChange={(m) => {
-              setJoinMethod(m);
-              setError(null);
-            }}
-            options={[
-              { value: 'code', label: 'S kodo' },
-              { value: 'phone', label: 'S telefonom' },
-            ]}
-          />
-          {joinMethod === 'code' ? (
-            <div>
-              <FieldLabel>Posebna koda ali povezava</FieldLabel>
-              <TextField placeholder="Prilepi kodo ali povezavo" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} />
-              <div style={{ font: '400 12px/1.4 Rubik', color: 'var(--text-sec)', marginTop: 6 }}>
-                Koda mora imeti vsaj 8 znakov.
-              </div>
-            </div>
-          ) : (
-            <div style={{ font: '400 13px/1.5 Rubik', color: 'var(--text-sec)' }}>
-              Pridružiš se skupini, v katero te je nekdo povabil s tvojo telefonsko številko.
-            </div>
-          )}
-          {needIdentity ? (
+          {preview ? (
             <>
-              <div>
-                <FieldLabel>Tvoje ime</FieldLabel>
-                <TextField placeholder="Ime in priimek" value={myName} onChange={(e) => setMyName(e.target.value)} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--accent)', borderRadius: 16, padding: '14px 15px' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconUsers size={22} color="var(--accent)" strokeWidth={2} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: '400 12px/1.2 Rubik', color: 'var(--text-sec)' }}>Pridružuješ se skupini</div>
+                  <div style={{ font: '700 17px/1.25 Rubik', color: 'var(--text)' }}>{preview.group.name}</div>
+                </div>
               </div>
-              <div>
-                <FieldLabel>Telefon</FieldLabel>
-                <TextField placeholder="031 123 456" inputMode="tel" value={myPhone} onChange={(e) => setMyPhone(e.target.value)} />
-              </div>
+              {needIdentity ? (
+                <>
+                  <div>
+                    <FieldLabel>Tvoje ime</FieldLabel>
+                    <TextField placeholder="Ime in priimek" value={myName} onChange={(e) => setMyName(e.target.value)} />
+                  </div>
+                  <div>
+                    <FieldLabel>Telefon</FieldLabel>
+                    <TextField placeholder="031 123 456" inputMode="tel" value={myPhone} onChange={(e) => setMyPhone(e.target.value)} />
+                  </div>
+                </>
+              ) : null}
+              {error ? <div style={{ font: '400 13px/1.4 Rubik', color: 'var(--neg)' }}>{error}</div> : null}
+              <Button variant="primary" full onClick={() => void finalizeJoin()} disabled={busy}>
+                {busy ? 'Pridružujem…' : `Pridruži se v «${preview.group.name}»`}
+              </Button>
+              <Button variant="ghost" full onClick={() => { setPreview(null); setError(null); }}>
+                Prekliči
+              </Button>
             </>
-          ) : null}
-          {error ? <div style={{ font: '400 13px/1.4 Rubik', color: 'var(--neg)' }}>{error}</div> : null}
-          <Button variant="primary" full onClick={() => void (joinMethod === 'code' ? joinByCode() : joinByPhone())} disabled={busy}>
-            {busy ? 'Pridružujem…' : 'Pridruži se'}
-          </Button>
-          <Button variant="ghost" full onClick={() => setView('list')}>
-            Nazaj
-          </Button>
+          ) : (
+            <>
+              <Segmented<JoinMethod>
+                value={joinMethod}
+                onChange={(m) => {
+                  setJoinMethod(m);
+                  setError(null);
+                }}
+                options={[
+                  { value: 'code', label: 'S kodo' },
+                  { value: 'phone', label: 'S telefonom' },
+                ]}
+              />
+              {joinMethod === 'code' ? (
+                <div>
+                  <FieldLabel>Posebna koda ali povezava</FieldLabel>
+                  <TextField placeholder="Prilepi kodo ali povezavo" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} />
+                  <div style={{ font: '400 12px/1.4 Rubik', color: 'var(--text-sec)', marginTop: 6 }}>
+                    Koda mora imeti vsaj 8 znakov.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ font: '400 13px/1.5 Rubik', color: 'var(--text-sec)' }}>
+                  Pridružiš se skupini, v katero te je nekdo povabil s tvojo telefonsko številko.
+                </div>
+              )}
+              {joinMethod === 'phone' && needIdentity ? (
+                <>
+                  <div>
+                    <FieldLabel>Tvoje ime</FieldLabel>
+                    <TextField placeholder="Ime in priimek" value={myName} onChange={(e) => setMyName(e.target.value)} />
+                  </div>
+                  <div>
+                    <FieldLabel>Telefon</FieldLabel>
+                    <TextField placeholder="031 123 456" inputMode="tel" value={myPhone} onChange={(e) => setMyPhone(e.target.value)} />
+                  </div>
+                </>
+              ) : null}
+              {error ? <div style={{ font: '400 13px/1.4 Rubik', color: 'var(--neg)' }}>{error}</div> : null}
+              <Button variant="primary" full onClick={() => void (joinMethod === 'code' ? findByCode() : findByPhone())} disabled={busy}>
+                {busy ? 'Iščem…' : 'Poišči skupino'}
+              </Button>
+              <Button variant="ghost" full onClick={() => setView('list')}>
+                Nazaj
+              </Button>
+            </>
+          )}
         </div>
       ) : null}
     </BottomSheet>

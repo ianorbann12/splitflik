@@ -8,7 +8,7 @@ import { outingExpenses, outingGrandTotal, outingNet, settlementPreview } from '
 import { avatarSrcProp, avatarUrlOf, firstName, initials } from '../../data/people';
 import { formatEur } from '../../format';
 import { useFlik } from '../../ui/FlikSheet';
-import { Avatar, BottomSheet, Button, Card, EmptyState, FieldLabel, Segmented, Sheet, TextField } from '../../ui/kit';
+import { Avatar, BottomSheet, Button, Card, ConfirmDialog, EmptyState, FieldLabel, Segmented, Sheet, TextField } from '../../ui/kit';
 import { IconCheck, IconCopy, IconPlus, IconQr, IconReceipt, IconShare } from '../../ui/icons';
 import { QrSheet } from '../../ui/QrSheet';
 import { StepAssign } from './StepAssign';
@@ -79,11 +79,17 @@ export function ActivityFlow({
       {step === 'activity' && outing ? (
         <StepActivity
           participants={participants}
+          candidates={state.people.filter((p) => !outing.participantIds.includes(p.id))}
           bills={bills}
           outingName={outing.name}
           onRename={(name) => {
             store.updateOuting({ ...outing, name });
             store.toast('Aktivnost preimenovana');
+          }}
+          onAddParticipants={(ids) => {
+            if (ids.length === 0) return;
+            store.updateOuting({ ...outing, participantIds: [...outing.participantIds, ...ids] });
+            store.toast(ids.length === 1 ? 'Oseba dodana' : 'Osebe dodane');
           }}
           onDelete={() => {
             store.deleteOuting(outing.id);
@@ -292,18 +298,22 @@ function StepNew({
 
 function StepActivity({
   participants,
+  candidates,
   bills,
   outingName,
   onRename,
+  onAddParticipants,
   onDelete,
   onAddBill,
   onEditBill,
   onFinish,
 }: {
   participants: Person[];
+  candidates: Person[];
   bills: Expense[];
   outingName: string;
   onRename: (name: string) => void;
+  onAddParticipants: (ids: string[]) => void;
   onDelete: () => void;
   onAddBill: () => void;
   onEditBill: (id: string) => void;
@@ -313,6 +323,12 @@ function StepActivity({
   const per = participants.length > 0 ? Math.round(grand / participants.length) : 0;
   const [editing, setEditing] = useState(false);
   const [renameValue, setRenameValue] = useState(outingName);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [selectedNew, setSelectedNew] = useState<string[]>([]);
+
+  const toggleNew = (id: string) =>
+    setSelectedNew((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   return (
     <div>
@@ -361,7 +377,7 @@ function StepActivity({
           <button
             onClick={() => {
               setEditing(false);
-              onDelete();
+              setConfirmDelete(true);
             }}
             style={{ width: '100%', background: 'none', border: 'none', color: 'var(--neg)', font: '600 14px/1 Rubik', cursor: 'pointer', marginTop: 10, padding: 8 }}
           >
@@ -370,8 +386,19 @@ function StepActivity({
         </BottomSheet>
       ) : null}
 
-      <div style={{ font: '600 15px/1 Rubik', color: 'var(--text)', marginBottom: 11 }}>
-        Udeleženci · {participants.length}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }}>
+        <div style={{ font: '600 15px/1 Rubik', color: 'var(--text)' }}>Udeleženci · {participants.length}</div>
+        {candidates.length > 0 ? (
+          <button
+            onClick={() => {
+              setSelectedNew([]);
+              setAdding(true);
+            }}
+            style={{ background: 'none', border: 'none', color: 'var(--link)', font: '600 13px/1 Rubik', cursor: 'pointer' }}
+          >
+            + Dodaj osebo
+          </button>
+        ) : null}
       </div>
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, marginBottom: 22 }} className="splitflik-scroll">
         {participants.map((p) => (
@@ -418,6 +445,54 @@ function StepActivity({
       <Button variant="primary" full onClick={onFinish}>
         Pregled delitve
       </Button>
+
+      {adding ? (
+        <BottomSheet title="Dodaj osebo" onClose={() => setAdding(false)}>
+          <div style={{ font: '400 13px/1.5 Rubik', color: 'var(--text-sec)', marginBottom: 14 }}>
+            Izberi člane skupine, ki naj se pridružijo tej aktivnosti.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+            {candidates.map((p) => {
+              const on = selectedNew.includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => toggleNew(p.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`, background: on ? 'var(--accent-soft)' : 'transparent', borderRadius: 9999, padding: '5px 12px 5px 5px', cursor: 'pointer', opacity: on ? 1 : 0.6 }}
+                >
+                  <Avatar name={p.name} id={p.id} size={26} {...avatarSrcProp(p.avatarUrl)} />
+                  <span style={{ font: '500 13px/1 Rubik', color: 'var(--text)' }}>{firstName(p.name)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <Button
+            variant="primary"
+            full
+            onClick={() => {
+              if (selectedNew.length === 0) return store.toast('Izberi vsaj eno osebo.');
+              onAddParticipants(selectedNew);
+              setAdding(false);
+            }}
+          >
+            Dodaj ({selectedNew.length})
+          </Button>
+        </BottomSheet>
+      ) : null}
+
+      {confirmDelete ? (
+        <ConfirmDialog
+          title="Izbriši aktivnost?"
+          message="Aktivnost in vsi njeni računi ter poravnave bodo trajno izbrisani. Tega ni mogoče razveljaviti."
+          confirmLabel="Izbriši"
+          danger
+          onConfirm={() => {
+            setConfirmDelete(false);
+            onDelete();
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      ) : null}
     </div>
   );
 }

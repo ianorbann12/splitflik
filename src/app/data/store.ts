@@ -25,6 +25,7 @@ export interface StoreApi {
     groupName: string,
     inviteCode: string,
     founder: { name: string; phone?: string; claimedBy: string },
+    currency?: string,
   ): Promise<{ groupId: string; personId: string }>;
   fetchGroupByInvite(
     inviteCode: string,
@@ -58,6 +59,7 @@ export interface StoreApi {
   deleteExpense(expenseId: string): void;
   settleOuting(outing: Outing, drafts: SettlementDraft[]): void;
   markSettlementPaid(settlementId: string): void;
+  setGroupCurrency(groupId: string, currency: string): void;
 }
 
 export const mode: StoreMode = live.isConfigured() ? 'live' : 'demo';

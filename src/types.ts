@@ -5,6 +5,8 @@ export interface Group {
   id: string;
   name: string;
   inviteCode: string;
+  /** ISO 4217 currency code for all amounts in this group. Defaults to EUR. */
+  currency?: string;
   createdAt: number;
 }
 

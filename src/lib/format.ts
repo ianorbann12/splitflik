@@ -3,9 +3,45 @@
 
 const NBSP = ' ';
 
-/** Formats integer cents as "12,15 €" / "1.234,56 €". */
+// --- Currency (docs/API.md §4.4) ---
+// Amounts stay integer minor units; currency only changes the displayed symbol.
+// A group picks one currency (mixing currencies within a split/balance is
+// meaningless without live FX), and the active one is set when its group loads.
+// Only 2-decimal currencies are offered, so minor-unit math is unchanged.
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: '€',
+  USD: '$',
+  GBP: '£',
+  CHF: 'CHF',
+  SEK: 'kr',
+  DKK: 'kr',
+  NOK: 'kr',
+  PLN: 'zł',
+  CZK: 'Kč',
+};
+
+export const SUPPORTED_CURRENCIES = Object.keys(CURRENCY_SYMBOLS);
+export const DEFAULT_CURRENCY = 'EUR';
+
+let activeCurrency = DEFAULT_CURRENCY;
+
+/** Sets the currency used by formatEur — called when a group becomes active. */
+export function setActiveCurrency(code: string | null | undefined): void {
+  activeCurrency = code && CURRENCY_SYMBOLS[code] ? code : DEFAULT_CURRENCY;
+}
+
+export function getActiveCurrency(): string {
+  return activeCurrency;
+}
+
+/** Symbol for a currency code (defaults to the active currency, then the code). */
+export function currencySymbol(code: string = activeCurrency): string {
+  return CURRENCY_SYMBOLS[code] ?? code;
+}
+
+/** Formats integer cents as "12,15 €" / "1.234,56 €" in the active currency. */
 export function formatEur(cents: number): string {
-  return `${formatEurPlain(cents)}${NBSP}€`;
+  return `${formatEurPlain(cents)}${NBSP}${currencySymbol()}`;
 }
 
 /** Formats integer cents as a plain amount: "12,15" (what NLB Pay expects typed/pasted). */

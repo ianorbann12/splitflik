@@ -6,12 +6,12 @@ import { useSession, useStore } from '../data/store';
 import { store } from '../data/store';
 import { fileToAvatarDataUrl } from '../data/image';
 import { setLocalProfile } from '../data/profile';
-import { formatPhone, normalizePhone } from '../format';
+import { currencySymbol, formatPhone, normalizePhone, SUPPORTED_CURRENCIES } from '../format';
 import { initials } from '../data/people';
 import { useTheme, type Theme } from '../theme';
 import { PAGE_PADDING } from '../ui/AppShell';
 import { Avatar, BottomSheet, Button, FieldLabel, SectionLabel, Segmented, TextField } from '../ui/kit';
-import { IconPencil } from '../ui/icons';
+import { IconCheck, IconPencil } from '../ui/icons';
 
 export function Profile({ onLogout }: { onLogout: () => void }) {
   const state = useStore();
@@ -21,6 +21,8 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
   const group = state.group;
   const { theme, setTheme } = useTheme();
   const [editing, setEditing] = useState(false);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const currentCurrency = group?.currency ?? 'EUR';
 
   const copyInvite = async () => {
     if (!group) return;
@@ -118,9 +120,14 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
 
       <SectionLabel>Nastavitve</SectionLabel>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden', marginBottom: 22 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--border-soft)' }}>
+        <div
+          onClick={() => group && setCurrencyOpen(true)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--border-soft)', cursor: group ? 'pointer' : 'default' }}
+        >
           <span style={{ font: '500 15px/1 Rubik', color: 'var(--text)' }}>Valuta</span>
-          <span style={{ font: '400 14px/1 Rubik', color: 'var(--text-sec)' }}>EUR (€)</span>
+          <span style={{ font: '400 14px/1 Rubik', color: group ? 'var(--link)' : 'var(--text-sec)' }}>
+            {currentCurrency} ({currencySymbol(currentCurrency)})
+          </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
           <span style={{ font: '500 15px/1 Rubik', color: 'var(--text)' }}>Jezik</span>
@@ -133,6 +140,35 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
       </Button>
 
       {editing && me ? <ProfileEditSheet me={me} onClose={() => setEditing(false)} /> : null}
+
+      {currencyOpen && group ? (
+        <BottomSheet title="Valuta skupine" onClose={() => setCurrencyOpen(false)}>
+          <div style={{ font: '400 13px/1.5 Rubik', color: 'var(--text-sec)', marginBottom: 14 }}>
+            Vsi zneski v skupini «{group.name}» bodo prikazani v izbrani valuti.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {SUPPORTED_CURRENCIES.map((c) => {
+              const on = c === currentCurrency;
+              return (
+                <button
+                  key={c}
+                  onClick={() => {
+                    store.setGroupCurrency(group.id, c);
+                    store.toast('Valuta posodobljena');
+                    setCurrencyOpen(false);
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: on ? 'var(--accent-soft)' : 'var(--surface)', border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 14, padding: '13px 15px', cursor: 'pointer' }}
+                >
+                  <span style={{ font: '600 15px/1 Rubik', color: 'var(--text)' }}>
+                    {c} ({currencySymbol(c)})
+                  </span>
+                  {on ? <IconCheck size={18} color="var(--link)" strokeWidth={2.4} /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </BottomSheet>
+      ) : null}
     </div>
   );
 }

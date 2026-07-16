@@ -474,3 +474,65 @@ export function Sheet({
     </div>
   );
 }
+
+// ---------------------------- ConfirmDialog --------------------------------
+
+/** Centered confirm modal for destructive/irreversible actions. */
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = 'Potrdi',
+  cancelLabel = 'Prekliči',
+  danger = false,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return createPortal(
+    <div
+      onClick={onCancel}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 140,
+        background: 'var(--scrim)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        animation: 'splitflik-fade 0.2s ease',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 360,
+          background: 'var(--bg)',
+          border: '1px solid var(--border-soft)',
+          borderRadius: 22,
+          padding: 22,
+        }}
+      >
+        <div style={{ font: '700 18px/1.25 Rubik', color: 'var(--text)', marginBottom: 8 }}>{title}</div>
+        <div style={{ font: '400 14px/1.5 Rubik', color: 'var(--text-sec)', marginBottom: 20 }}>{message}</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button variant="secondary" full onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+          <Button variant={danger ? 'danger' : 'primary'} full onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}

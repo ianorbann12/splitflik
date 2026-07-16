@@ -6,6 +6,7 @@ import type { AppState } from '../../lib/storage';
 import type { Friend, Group, Outing, Person, Settlement, SettlementDraft } from '../../types';
 import type { Expense } from '../../types';
 import { buildDemoData, DEMO_AUTH_USER, DEMO_INVITE_CODE, DEMO_ME_ID } from './demoSeed';
+import { setActiveCurrency } from '../../lib/format';
 
 // User-level demo state (groups list + friends roster), separate from the
 // single active-group snapshot in `state`.
@@ -106,6 +107,7 @@ export async function initGroup(groupId: string): Promise<void> {
   ensureDemoInit();
   if (groupId === 'g-demo') {
     const data = buildDemoData();
+    setActiveCurrency(data.group.currency);
     setState({
       status: 'ready',
       group: data.group,
@@ -117,6 +119,7 @@ export async function initGroup(groupId: string): Promise<void> {
     return;
   }
   const group = demoGroups.find((g) => g.id === groupId);
+  setActiveCurrency(group?.currency);
   setState({
     status: 'ready',
     group: group ?? { id: groupId, name: 'Moja skupina', inviteCode: '', createdAt: Date.now() },
@@ -141,10 +144,11 @@ export async function createGroup(
   groupName: string,
   inviteCode: string,
   founder: { name: string; phone?: string; claimedBy: string },
+  currency: string = 'EUR',
 ): Promise<{ groupId: string; personId: string }> {
   const groupId = crypto.randomUUID();
   const personId = crypto.randomUUID();
-  const group: Group = { id: groupId, name: groupName, inviteCode, createdAt: Date.now() };
+  const group: Group = { id: groupId, name: groupName, inviteCode, currency, createdAt: Date.now() };
   const person: Person = {
     id: personId,
     groupId,
@@ -155,6 +159,7 @@ export async function createGroup(
   ensureDemoInit();
   demoGroups = [...demoGroups, group];
   createdGroupPeople[groupId] = [person];
+  setActiveCurrency(currency);
   setState({ status: 'ready', group, people: [person], outings: [], expenses: [], settlements: [] });
   return { groupId, personId };
 }
@@ -354,4 +359,10 @@ export function markSettlementPaid(settlementId: string): void {
       s.id === settlementId ? { ...s, status: 'paid' as const, paidAt } : s,
     ),
   });
+}
+
+export function setGroupCurrency(groupId: string, currency: string): void {
+  setActiveCurrency(currency);
+  demoGroups = demoGroups.map((g) => (g.id === groupId ? { ...g, currency } : g));
+  if (state.group?.id === groupId) setState({ group: { ...state.group, currency } });
 }

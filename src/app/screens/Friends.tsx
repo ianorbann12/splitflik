@@ -6,13 +6,13 @@
 import { useEffect, useState } from 'react';
 import type { Friend } from '../../types';
 import { friendBalances } from '../data/derive';
-import { addFriend, loadFriends, removeFriend, renameFriend, useFriends } from '../data/friends';
+import { addFriend, loadFriends, removeFriend, useFriends } from '../data/friends';
 import { avatarSrcProp } from '../data/people';
 import { store, useSession, useStore } from '../data/store';
 import { formatPhone, normalizePhone, signedEur } from '../format';
 import { useFlik } from '../ui/FlikSheet';
 import { PAGE_PADDING } from '../ui/AppShell';
-import { Avatar, BottomSheet, Button, Card, FieldLabel, TextField } from '../ui/kit';
+import { Avatar, BottomSheet, Button, Card, ConfirmDialog, FieldLabel, TextField } from '../ui/kit';
 import { IconLink, IconSearch } from '../ui/icons';
 
 type SheetState = { mode: 'add' } | { mode: 'edit'; friend: Friend } | null;
@@ -123,8 +123,8 @@ function FriendSheet({
   onClose: () => void;
 }) {
   const existing = sheet.mode === 'edit' ? sheet.friend : null;
-  const [phone, setPhone] = useState(existing?.phone ?? '');
-  const [name, setName] = useState(existing?.name ?? '');
+  const [phone, setPhone] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   const inviteLink = typeof location !== 'undefined' ? location.origin + location.pathname : '';
 
@@ -145,14 +145,6 @@ function FriendSheet({
     onClose();
   };
 
-  const save = async () => {
-    if (!existing) return;
-    if (!name.trim()) return store.toast('Vnesi ime.');
-    await renameFriend(userId, existing.phone, name.trim());
-    store.toast('Prijatelj posodobljen');
-    onClose();
-  };
-
   const remove = async () => {
     if (!existing) return;
     await removeFriend(userId, existing.phone);
@@ -164,8 +156,8 @@ function FriendSheet({
     return (
       <BottomSheet title="Dodaj prijatelja" onClose={onClose}>
         <div style={{ font: '400 13px/1.5 Rubik', color: 'var(--text-sec)', marginBottom: 16 }}>
-          Prijatelja dodaš z njegovo telefonsko številko. Če je registriran, se samodejno prikažeta
-          njegova slika in ime.
+          Prijatelja dodaš z njegovo telefonsko številko — brez QR kode. Če je registriran, se
+          samodejno prikažeta njegova slika in ime (ime določi sam ob registraciji).
         </div>
         <FieldLabel>Telefonska številka</FieldLabel>
         <TextField
@@ -193,28 +185,34 @@ function FriendSheet({
   }
 
   return (
-    <BottomSheet title="Uredi prijatelja" onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Avatar name={name || existing.phone} id={existing.phone} size={72} {...avatarSrcProp(existing.avatarUrl)} />
+    <BottomSheet title="Prijatelj" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <Avatar name={existing.name ?? existing.phone} id={existing.phone} size={72} {...avatarSrcProp(existing.avatarUrl)} />
+        <div style={{ font: '600 18px/1.2 Rubik', color: 'var(--text)' }}>
+          {existing.name ?? 'Še ni registriran'}
+        </div>
+        <div style={{ font: '400 14px/1.3 Rubik', color: 'var(--text-sec)' }}>{formatPhone(existing.phone)}</div>
       </div>
-      <FieldLabel>Ime</FieldLabel>
-      <TextField value={name} onChange={(e) => setName(e.target.value)} placeholder="Ime prijatelja" style={{ marginBottom: 14 }} />
-      <FieldLabel>Telefon</FieldLabel>
-      <TextField
-        value={formatPhone(existing.phone)}
-        readOnly
-        disabled
-        style={{ marginBottom: 6, color: 'var(--text-sec)', background: 'var(--surface3)' }}
-      />
-      <div style={{ font: '400 12px/1.4 Rubik', color: 'var(--text-sec)', marginBottom: 18 }}>
-        Telefonske številke prijatelja ni mogoče spremeniti.
+      <div style={{ font: '400 12px/1.4 Rubik', color: 'var(--text-sec)', marginBottom: 18, textAlign: 'center' }}>
+        Imena in telefonske številke prijatelja ni mogoče spreminjati — ime določi vsak zase ob
+        registraciji.
       </div>
-      <Button variant="primary" full onClick={() => void save()} style={{ marginBottom: 10 }}>
-        Shrani
-      </Button>
-      <button onClick={() => void remove()} style={{ width: '100%', background: 'none', border: 'none', color: 'var(--neg)', font: '600 14px/1 Rubik', cursor: 'pointer', padding: 8 }}>
+      <button
+        onClick={() => setConfirmRemove(true)}
+        style={{ width: '100%', background: 'none', border: 'none', color: 'var(--neg)', font: '600 14px/1 Rubik', cursor: 'pointer', padding: 8 }}
+      >
         Odstrani prijatelja
       </button>
+      {confirmRemove ? (
+        <ConfirmDialog
+          title="Odstrani prijatelja?"
+          message={`${existing.name ?? formatPhone(existing.phone)} bo odstranjen iz tvojega seznama prijateljev.`}
+          confirmLabel="Odstrani"
+          danger
+          onConfirm={() => void remove()}
+          onCancel={() => setConfirmRemove(false)}
+        />
+      ) : null}
     </BottomSheet>
   );
 }

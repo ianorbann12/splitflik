@@ -7,6 +7,11 @@ export {
   normalizePhone,
   formatPhone,
   formatDate,
+  setActiveCurrency,
+  getActiveCurrency,
+  currencySymbol,
+  SUPPORTED_CURRENCIES,
+  DEFAULT_CURRENCY,
 } from '../lib/format';
 
 import { formatEur, formatDate } from '../lib/format';

@@ -7,11 +7,41 @@ import { computeShares, equalSplit } from '../../../engine/shares';
 import { store } from '../../data/store';
 import { parseReceipt } from '../../data/receipt';
 import { avatarSrcProp, avatarUrlOf, firstName } from '../../data/people';
-import { formatEur, formatEurPlain, parseEur } from '../../format';
-import { Avatar, Button, FieldLabel, Segmented, Spinner, TextField } from '../../ui/kit';
+import { currencySymbol, formatEur, formatEurPlain, parseEur } from '../../format';
+import { Avatar, Button, ConfirmDialog, FieldLabel, Segmented, Spinner, TextField } from '../../ui/kit';
 import { IconCamera, IconPlus, IconTrash } from '../../ui/icons';
 
 type Mode = 'equal' | 'exact' | 'items';
+
+/**
+ * Resolves an "exact" split where the user typed amounts for only SOME people:
+ * blank participants share the remaining total equally (largest-remainder via
+ * the engine). Non-empty-but-invalid inputs are treated as blank.
+ */
+function resolveExact(
+  totalCents: number,
+  ids: string[],
+  inputs: Record<string, string>,
+): { shares: Map<string, number>; fixedSum: number; remainder: number; autoIds: string[] } {
+  const shares = new Map<string, number>();
+  const autoIds: string[] = [];
+  let fixedSum = 0;
+  for (const id of ids) {
+    const raw = (inputs[id] ?? '').trim();
+    const c = raw === '' ? null : parseEur(raw);
+    if (c === null) {
+      autoIds.push(id);
+      continue;
+    }
+    shares.set(id, c);
+    fixedSum += c;
+  }
+  const remainder = totalCents - fixedSum;
+  if (autoIds.length > 0 && remainder > 0) {
+    for (const [id, c] of equalSplit(remainder, autoIds)) shares.set(id, c);
+  }
+  return { shares, fixedSum, remainder, autoIds };
+}
 
 interface DraftItem {
   key: string;
@@ -83,6 +113,7 @@ export function StepAssign({
     return [];
   });
   const [scanning, setScanning] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const itemCents = (it: DraftItem) => parseEur(it.amountInput) ?? 0;
@@ -98,8 +129,7 @@ export function StepAssign({
     }
   }, [mode, totalCents, equalIds]);
 
-  const exactSum = participants.reduce((s, p) => s + (parseEur(exactInputs[p.id] ?? '') ?? 0), 0);
-  const exactDiff = exactSum - totalCents;
+  const exactResolve = resolveExact(totalCents, allIds, exactInputs);
 
   const onScan = async (file: File) => {
     setScanning(true);
@@ -173,16 +203,15 @@ export function StepAssign({
     } else {
       const parsed = parseEur(totalInput);
       if (!parsed || parsed <= 0) return store.toast('Vnesi skupni znesek.');
-      const entries = participants
-        .map((p) => ({ personId: p.id, amountCents: parseEur(exactInputs[p.id] ?? '') ?? 0 }))
+      const r = resolveExact(parsed, allIds, exactInputs);
+      if (r.remainder < 0) return store.toast(`Vnosi presegajo znesek za ${formatEur(-r.remainder)}`);
+      // Everyone has a fixed amount but they don't add up — nobody to absorb the rest.
+      if (r.autoIds.length === 0 && r.remainder > 0)
+        return store.toast(`Manjka še ${formatEur(r.remainder)}`);
+      const entries = allIds
+        .map((id) => ({ personId: id, amountCents: r.shares.get(id) ?? 0 }))
         .filter((e) => e.amountCents > 0);
       if (entries.length === 0) return store.toast('Vnesi zneske po osebah.');
-      const sum = entries.reduce((s, e) => s + e.amountCents, 0);
-      if (sum !== parsed) {
-        return store.toast(
-          sum > parsed ? `Preveč razdeljeno za ${formatEur(sum - parsed)}` : `Manjka še ${formatEur(parsed - sum)}`,
-        );
-      }
       amountCents = parsed;
       split = { mode: 'exact', entries };
     }
@@ -290,8 +319,7 @@ export function StepAssign({
           equalPreview={equalPreview}
           exactInputs={exactInputs}
           setExactInputs={setExactInputs}
-          exactSum={exactSum}
-          exactDiff={exactDiff}
+          exactResolve={exactResolve}
           totalCents={totalCents}
         />
       )}
@@ -301,11 +329,25 @@ export function StepAssign({
       </Button>
       {editingExpense ? (
         <button
-          onClick={deleteBill}
+          onClick={() => setConfirmDelete(true)}
           style={{ width: '100%', background: 'none', border: 'none', color: 'var(--neg)', font: '600 14px/1 Rubik', cursor: 'pointer', marginTop: 14, padding: 8 }}
         >
           Izbriši račun
         </button>
+      ) : null}
+
+      {confirmDelete ? (
+        <ConfirmDialog
+          title="Izbriši račun?"
+          message="Ta račun bo trajno izbrisan iz aktivnosti."
+          confirmLabel="Izbriši"
+          danger
+          onConfirm={() => {
+            setConfirmDelete(false);
+            deleteBill();
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
       ) : null}
     </div>
   );
@@ -383,7 +425,7 @@ function ItemsEditor({
                   placeholder="0,00"
                   style={{ width: '100%', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 24px 10px 10px', font: '600 14px/1 Rubik', color: 'var(--text)', background: 'var(--surface)', textAlign: 'right' }}
                 />
-                <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', font: '500 13px/1 Rubik', color: 'var(--text-sec)' }}>€</span>
+                <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', font: '500 13px/1 Rubik', color: 'var(--text-sec)' }}>{currencySymbol()}</span>
               </div>
               <button onClick={() => onRemove(it.key)} aria-label="Odstrani" style={{ border: 'none', background: 'var(--surface3)', borderRadius: 12, width: 40, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <IconTrash size={16} color="var(--text-sec)" strokeWidth={2} />
@@ -418,8 +460,7 @@ function ManualEditor({
   equalPreview,
   exactInputs,
   setExactInputs,
-  exactSum,
-  exactDiff,
+  exactResolve,
   totalCents,
 }: {
   mode: Mode;
@@ -433,15 +474,16 @@ function ManualEditor({
   equalPreview: Map<string, number> | null;
   exactInputs: Record<string, string>;
   setExactInputs: (fn: (cur: Record<string, string>) => Record<string, string>) => void;
-  exactSum: number;
-  exactDiff: number;
+  exactResolve: { shares: Map<string, number>; fixedSum: number; remainder: number; autoIds: string[] };
   totalCents: number;
 }) {
-  const match = Math.abs(exactDiff) === 0;
+  const { shares, remainder, autoIds } = exactResolve;
+  const auto = autoIds.length > 0;
+  const over = remainder < 0;
   return (
     <div>
       <FieldLabel>Skupni znesek računa</FieldLabel>
-      <TextField value={totalInput} onChange={(e) => setTotalInput(e.target.value)} inputMode="decimal" placeholder="0,00" suffix="€" style={{ font: '600 17px/1 Rubik', marginBottom: 16 }} />
+      <TextField value={totalInput} onChange={(e) => setTotalInput(e.target.value)} inputMode="decimal" placeholder="0,00" suffix={currencySymbol()} style={{ font: '600 17px/1 Rubik', marginBottom: 16 }} />
 
       <Segmented<Mode>
         variant="block"
@@ -476,36 +518,61 @@ function ManualEditor({
       ) : (
         <div>
           <FieldLabel>Znesek na osebo</FieldLabel>
+          <div style={{ font: '400 12px/1.4 Rubik', color: 'var(--text-sec)', marginBottom: 10 }}>
+            Vnesi zneske za nekatere; preostale pusti prazne in preostanek razdelimo mednje.
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {participants.map((p) => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Avatar name={p.name} id={p.id} size={40} {...avatarSrcProp(p.avatarUrl)} />
-                <span style={{ flex: 1, font: '500 15px/1 Rubik', color: 'var(--text)' }}>
-                  {firstName(p.name)}
-                  {p.id === meId ? ' (ti)' : ''}
-                </span>
-                <div style={{ position: 'relative', width: 100 }}>
-                  <input
-                    value={exactInputs[p.id] ?? ''}
-                    onChange={(e) => setExactInputs((cur) => ({ ...cur, [p.id]: e.target.value }))}
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    style={{ width: '100%', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 26px 10px 12px', font: '600 15px/1 Rubik', color: 'var(--text)', background: 'var(--surface)', textAlign: 'right' }}
-                  />
-                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', font: '500 14px/1 Rubik', color: 'var(--text-sec)' }}>€</span>
+            {participants.map((p) => {
+              const isAuto = autoIds.includes(p.id);
+              const share = shares.get(p.id) ?? 0;
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Avatar name={p.name} id={p.id} size={40} {...avatarSrcProp(p.avatarUrl)} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ font: '500 15px/1 Rubik', color: 'var(--text)' }}>
+                      {firstName(p.name)}
+                      {p.id === meId ? ' (ti)' : ''}
+                    </span>
+                    {isAuto && totalCents > 0 && !over && share > 0 ? (
+                      <div style={{ font: '400 12px/1.2 Rubik', color: 'var(--link)', marginTop: 2 }}>
+                        samodejno {formatEur(share)}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div style={{ position: 'relative', width: 100 }}>
+                    <input
+                      value={exactInputs[p.id] ?? ''}
+                      onChange={(e) => setExactInputs((cur) => ({ ...cur, [p.id]: e.target.value }))}
+                      inputMode="decimal"
+                      placeholder="samodej."
+                      style={{ width: '100%', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 26px 10px 12px', font: '600 15px/1 Rubik', color: 'var(--text)', background: 'var(--surface)', textAlign: 'right' }}
+                    />
+                    <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', font: '500 14px/1 Rubik', color: 'var(--text-sec)' }}>
+                      {currencySymbol()}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           {totalCents > 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: match ? 'var(--accent-soft)' : 'rgba(224,65,63,0.12)', borderRadius: 12, padding: '12px 14px', marginTop: 14 }}>
-              <span style={{ font: '500 13px/1.3 Rubik', color: match ? 'var(--pos)' : 'var(--neg)' }}>
-                {match ? 'Zneski se ujemajo z računom' : exactDiff > 0 ? `Preveč razdeljeno za ${formatEur(exactDiff)}` : `Manjka še ${formatEur(-exactDiff)}`}
-              </span>
-              <span style={{ font: '600 15px/1 Rubik', color: match ? 'var(--pos)' : 'var(--neg)' }}>
-                {formatEur(exactSum)} / {formatEur(totalCents)}
-              </span>
-            </div>
+            (() => {
+              const good = !over && (remainder === 0 || auto);
+              const color = good ? (remainder === 0 ? 'var(--pos)' : 'var(--link)') : 'var(--neg)';
+              const bg = good ? 'var(--accent-soft)' : 'rgba(224,65,63,0.12)';
+              const text = over
+                ? `Vnosi presegajo znesek za ${formatEur(-remainder)}`
+                : remainder === 0
+                  ? 'Zneski se ujemajo z računom'
+                  : auto
+                    ? `Preostanek ${formatEur(remainder)} razdeljen med ${autoIds.length} ${autoIds.length === 1 ? 'osebo' : 'oseb'}`
+                    : `Manjka še ${formatEur(remainder)}`;
+              return (
+                <div style={{ background: bg, borderRadius: 12, padding: '12px 14px', marginTop: 14 }}>
+                  <span style={{ font: '500 13px/1.35 Rubik', color }}>{text}</span>
+                </div>
+              );
+            })()
           ) : null}
         </div>
       )}

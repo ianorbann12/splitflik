@@ -34,7 +34,7 @@ cents**; all client timestamps are epoch milliseconds (DB stores timestamptz).
 
 | Table | Purpose | Notes |
 |---|---|---|
-| `groups` | one friend circle | `invite_code` unique, 12–64 chars — the effective access secret |
+| `groups` | one friend circle | `invite_code` unique, 12–64 chars — the effective access secret; `currency` (3-letter code, default `EUR`) — display currency for every amount in the group |
 | `people` | members (roster entries) | `claimed_by` = Supabase Auth user id of whoever "is" this person; `phone` matches `^0[1-9][0-9]{7}$` (Slovenian mobile, normalized); `avatar_url` = optional profile picture (small data URL or hosted URL) |
 | `outings` | events expenses hang off | `participant_ids uuid[]`, `current_cycle` starts at 1 |
 | `expenses` | one bill | `split jsonb` (see §3.2), `cycle` = outing's `current_cycle` at creation, `amount_cents > 0` |
@@ -69,6 +69,13 @@ if at all possible.
 
 No float arithmetic on amounts anywhere. Parse user input as strings
 (`src/lib/format.ts` shows how); `12,15 €` is `1215`.
+
+**Currency is per group and display-only.** `groups.currency` (default `EUR`)
+picks the symbol shown by `formatEur`; amounts stay integer minor units and the
+engine is currency-agnostic, so all math and rounding are unchanged. Only
+2-decimal currencies are offered (mixing currencies within a split or balance is
+meaningless without live FX, so it is not supported). A frontend sets the active
+currency when a group loads; changing it never rewrites stored amounts.
 
 ### 3.2 Split modes and rounding (`expenses.split` JSON)
 
@@ -175,6 +182,9 @@ Copy `src/types.ts`, `src/engine/` and `src/lib/` into your project (React
 - `format.ts` — the only place amounts are formatted/parsed: `formatEur`
   (`12,15 €`, NBSP), `formatEurPlain`, string-based `parseEur`,
   `normalizePhone`/`formatPhone` (Slovenian mobile), `formatDate` (sl-SI).
+  `setActiveCurrency(code)` / `currencySymbol()` switch the symbol `formatEur`
+  appends (per-group, §3.1); the storage layer calls it when a group loads.
+- `storage.setGroupCurrency(groupId, code)` — change a group's display currency.
 - `flik.ts` — handoff constants and helpers (§3.4).
 
 Bootstrapping order (see the reference frontend repo for a working example):
