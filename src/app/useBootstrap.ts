@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { DEMO_SESSION } from './data/demoSeed';
 import { getSession, mode, parseInviteInput, setSession, store, useSession, useStore } from './data/store';
 
-export type BootPhase = 'loading' | 'auth' | 'group' | 'ready' | 'error';
+export type BootPhase = 'loading' | 'auth' | 'ready' | 'error';
 
 export interface BootState {
   phase: BootPhase;
@@ -53,13 +53,13 @@ export function useBootstrap(): BootState {
     }
   }, [state.authUserId, session, joinCode]);
 
+  // Group choice is NOT mandatory at sign-in: once authenticated we enter the
+  // app; the active group is optional and can be created/joined/switched later.
   let phase: BootPhase;
   if (state.authUserId === 'loading') phase = 'loading';
   else if (state.authUserId === null) phase = 'auth';
-  else if (!session) phase = 'group';
-  else if (state.status === 'error' && !state.group) phase = 'error';
-  else if (state.status === 'ready' || state.group) phase = 'ready';
-  else phase = 'loading';
+  else if (session && state.status === 'error' && !state.group) phase = 'error';
+  else phase = 'ready';
 
   return { phase, joinCode };
 }

@@ -39,6 +39,7 @@ cents**; all client timestamps are epoch milliseconds (DB stores timestamptz).
 | `outings` | events expenses hang off | `participant_ids uuid[]`, `current_cycle` starts at 1 |
 | `expenses` | one bill | `split jsonb` (see §3.2), `cycle` = outing's `current_cycle` at creation, `amount_cents > 0` |
 | `settlements` | materialised debts | `status` ∈ `pending`/`paid`; created only via the `settle_outing` RPC |
+| `friends` | user-level friend roster | `(owner, phone)` — `owner` = Auth user id; cached `name`/`avatar_url`; added by phone, reusable across groups |
 
 Deletes cascade: removing an outing removes its expenses and settlements;
 removing a group removes everything.

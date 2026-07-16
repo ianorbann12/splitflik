@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 import * as live from '../../lib/storage';
 import * as demo from './demoStore';
 import type { AppState } from '../../lib/storage';
-import type { Expense, Group, Outing, Person, SettlementDraft } from '../../types';
+import type { Expense, Friend, Group, Outing, Person, SettlementDraft } from '../../types';
 
 export type StoreMode = 'live' | 'demo';
 
@@ -32,6 +32,16 @@ export interface StoreApi {
   claimPerson(personId: string, userId: string): Promise<void>;
   claimPersonWithName(personId: string, userId: string, name: string, avatarUrl?: string): Promise<void>;
   fetchPendingByPhone(phone: string): Promise<{ group: Group; person: Person } | null>;
+  fetchMyGroups(userId: string): Promise<{ group: Group; personId: string }[]>;
+  lookupPersonByPhone(phone: string): Promise<{ name: string; avatarUrl?: string } | null>;
+  listFriends(userId: string): Promise<Friend[]>;
+  addFriend(userId: string, phone: string): Promise<Friend>;
+  removeFriend(userId: string, phone: string): Promise<void>;
+  updateFriendName(userId: string, phone: string, name: string): Promise<void>;
+  addGroupMembers(
+    groupId: string,
+    members: { name?: string; phone: string; avatarUrl?: string }[],
+  ): Promise<void>;
   joinAsNewPerson(
     groupId: string,
     name: string,

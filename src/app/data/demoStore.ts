@@ -3,9 +3,29 @@
 // — so the whole app is explorable locally with realistic seeded data. Screens
 // never import this directly; store.ts picks it over the real SDK.
 import type { AppState } from '../../lib/storage';
-import type { Group, Outing, Person, Settlement, SettlementDraft } from '../../types';
+import type { Friend, Group, Outing, Person, Settlement, SettlementDraft } from '../../types';
 import type { Expense } from '../../types';
-import { buildDemoData, DEMO_AUTH_USER, DEMO_INVITE_CODE } from './demoSeed';
+import { buildDemoData, DEMO_AUTH_USER, DEMO_INVITE_CODE, DEMO_ME_ID } from './demoSeed';
+
+// User-level demo state (groups list + friends roster), separate from the
+// single active-group snapshot in `state`.
+let demoGroups: Group[] = [];
+let demoFriends: Friend[] = [];
+const createdGroupPeople: Record<string, Person[]> = {};
+
+function ensureDemoInit(): void {
+  if (demoGroups.length) return;
+  const d = buildDemoData();
+  demoGroups = [d.group];
+  demoFriends = d.people
+    .filter((p) => p.id !== DEMO_ME_ID && p.phone)
+    .map((p) => ({
+      owner: DEMO_AUTH_USER,
+      phone: p.phone as string,
+      ...(p.name ? { name: p.name } : {}),
+      ...(p.avatarUrl ? { avatarUrl: p.avatarUrl } : {}),
+    }));
+}
 
 function seededState(): AppState {
   const data = buildDemoData();
@@ -83,6 +103,7 @@ export async function authSignOut(): Promise<void> {
 // --- Group lifecycle ---
 
 export async function initGroup(groupId: string): Promise<void> {
+  ensureDemoInit();
   if (groupId === 'g-demo') {
     const data = buildDemoData();
     setState({
@@ -95,10 +116,15 @@ export async function initGroup(groupId: string): Promise<void> {
     });
     return;
   }
-  // A freshly created/joined demo group keeps whatever createGroup/join set.
-  if (!state.group || state.group.id !== groupId) {
-    setState({ status: 'ready', group: { id: groupId, name: 'Moja skupina', inviteCode: '', createdAt: Date.now() } });
-  }
+  const group = demoGroups.find((g) => g.id === groupId);
+  setState({
+    status: 'ready',
+    group: group ?? { id: groupId, name: 'Moja skupina', inviteCode: '', createdAt: Date.now() },
+    people: createdGroupPeople[groupId] ?? [],
+    outings: [],
+    expenses: [],
+    settlements: [],
+  });
 }
 
 export function teardownGroup(): void {
@@ -126,8 +152,72 @@ export async function createGroup(
     ...(founder.phone ? { phone: founder.phone } : {}),
     claimedBy: founder.claimedBy,
   };
+  ensureDemoInit();
+  demoGroups = [...demoGroups, group];
+  createdGroupPeople[groupId] = [person];
   setState({ status: 'ready', group, people: [person], outings: [], expenses: [], settlements: [] });
   return { groupId, personId };
+}
+
+// --- User-level: my groups + friends roster ---
+
+export async function fetchMyGroups(): Promise<{ group: Group; personId: string }[]> {
+  ensureDemoInit();
+  return demoGroups.map((group) => {
+    if (group.id === 'g-demo') return { group, personId: DEMO_ME_ID };
+    const founder = (createdGroupPeople[group.id] ?? []).find((p) => p.claimedBy === DEMO_AUTH_USER);
+    return { group, personId: founder?.id ?? DEMO_ME_ID };
+  });
+}
+
+export async function lookupPersonByPhone(
+  phone: string,
+): Promise<{ name: string; avatarUrl?: string } | null> {
+  const d = buildDemoData();
+  const person = d.people.find((p) => p.phone === phone);
+  if (!person) return null;
+  return { name: person.name, ...(person.avatarUrl ? { avatarUrl: person.avatarUrl } : {}) };
+}
+
+export async function listFriends(): Promise<Friend[]> {
+  ensureDemoInit();
+  return demoFriends;
+}
+
+export async function addFriend(userId: string, phone: string): Promise<Friend> {
+  ensureDemoInit();
+  const profile = await lookupPersonByPhone(phone);
+  const friend: Friend = {
+    owner: userId,
+    phone,
+    ...(profile?.name ? { name: profile.name } : {}),
+    ...(profile?.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
+  };
+  if (!demoFriends.some((f) => f.phone === phone)) demoFriends = [...demoFriends, friend];
+  return friend;
+}
+
+export async function removeFriend(_userId: string, phone: string): Promise<void> {
+  demoFriends = demoFriends.filter((f) => f.phone !== phone);
+}
+
+export async function addGroupMembers(
+  groupId: string,
+  members: { name?: string; phone: string; avatarUrl?: string }[],
+): Promise<void> {
+  const people: Person[] = members.map((m) => ({
+    id: crypto.randomUUID(),
+    groupId,
+    name: m.name ?? m.phone,
+    phone: m.phone,
+    ...(m.avatarUrl ? { avatarUrl: m.avatarUrl } : {}),
+  }));
+  createdGroupPeople[groupId] = [...(createdGroupPeople[groupId] ?? []), ...people];
+  if (state.group?.id === groupId) setState({ people: [...state.people, ...people] });
+}
+
+export async function updateFriendName(_userId: string, phone: string, name: string): Promise<void> {
+  demoFriends = demoFriends.map((f) => (f.phone === phone ? { ...f, name } : f));
 }
 
 export async function fetchGroupByInvite(

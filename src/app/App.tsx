@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ThemeProvider } from './theme';
 import { FlikProvider } from './ui/FlikSheet';
 import { AppShell, type Tab } from './ui/AppShell';
@@ -6,10 +6,11 @@ import { ToastHost } from './ui/Toast';
 import { Button, Spinner } from './ui/kit';
 import { SplitFlikLogo } from './auth/GateLayout';
 import { ActivityFlow } from './screens/activity/ActivityFlow';
+import { GroupSwitcher } from './screens/GroupSwitcher';
 import { AuthGate } from './auth/AuthGate';
-import { GroupGate } from './auth/GroupGate';
 import { useBootstrap } from './useBootstrap';
 import { setSession, store, useSession, useStore } from './data/store';
+import { loadFriends } from './data/friends';
 import { notifications } from './data/derive';
 import { useNotifReadAt } from './data/uiPrefs';
 import { Home } from './screens/Home';
@@ -17,6 +18,8 @@ import { Notifications } from './screens/Notifications';
 import { Stats } from './screens/Stats';
 import { Friends } from './screens/Friends';
 import { Profile } from './screens/Profile';
+
+type SwitcherView = 'list' | 'create' | 'join';
 
 export function App() {
   return (
@@ -32,9 +35,8 @@ function Root() {
   const { phase, joinCode } = useBootstrap();
   if (phase === 'loading') return <Splash />;
   if (phase === 'auth') return <AuthGate />;
-  if (phase === 'group') return <GroupGate initialCode={joinCode} />;
   if (phase === 'error') return <ErrorScreen />;
-  return <MainApp />;
+  return <MainApp {...(joinCode ? { joinCode } : {})} />;
 }
 
 function ErrorScreen() {
@@ -108,19 +110,39 @@ interface ActivityLaunch {
   outingId?: string;
 }
 
-function MainApp() {
+function MainApp({ joinCode }: { joinCode?: string }) {
   const state = useStore();
   const session = useSession();
   const meId = session?.personId ?? '';
+  const userId = typeof state.authUserId === 'string' ? state.authUserId : '';
   const readAt = useNotifReadAt();
   const [tab, setTab] = useState<Tab>('home');
   const [activity, setActivity] = useState<ActivityLaunch>({ open: false });
+  const [switcher, setSwitcher] = useState<{ open: boolean; view?: SwitcherView; code?: string }>({
+    open: false,
+  });
 
   const { unreadCount } = notifications(state, meId, readAt);
+
+  useEffect(() => {
+    if (userId) void loadFriends(userId);
+  }, [userId]);
+
+  // Arrived via an invite link with no active group → open the join sheet.
+  useEffect(() => {
+    if (joinCode && !session) setSwitcher({ open: true, view: 'join', code: joinCode });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openNew = useCallback(() => setActivity({ open: true }), []);
   const openOuting = useCallback((outingId: string) => setActivity({ open: true, outingId }), []);
   const closeActivity = useCallback(() => setActivity({ open: false }), []);
+  // `view` may be omitted, or an onClick handler may hand us a click event —
+  // only forward it when it's an actual view name.
+  const openGroups = useCallback(
+    (view?: SwitcherView) => setSwitcher({ open: true, ...(typeof view === 'string' ? { view } : {}) }),
+    [],
+  );
 
   const onLogout = useCallback(() => {
     void store.authSignOut();
@@ -130,7 +152,7 @@ function MainApp() {
   }, []);
 
   const panels: Record<Tab, ReactNode> = {
-    home: <Home onNewActivity={openNew} onOpenActivity={openOuting} />,
+    home: <Home onNewActivity={openNew} onOpenActivity={openOuting} onOpenGroups={openGroups} />,
     notifs: <Notifications />,
     stats: <Stats />,
     friends: <Friends />,
@@ -142,13 +164,22 @@ function MainApp() {
   ) : null;
 
   return (
-    <AppShell
-      tab={tab}
-      onTab={setTab}
-      panels={panels}
-      unread={unreadCount}
-      overlay={overlay}
-      toast={<ToastHost />}
-    />
+    <>
+      <AppShell
+        tab={tab}
+        onTab={setTab}
+        panels={panels}
+        unread={unreadCount}
+        overlay={overlay}
+        toast={<ToastHost />}
+      />
+      {switcher.open ? (
+        <GroupSwitcher
+          {...(switcher.view ? { initialView: switcher.view } : {})}
+          {...(switcher.code ? { initialJoinCode: switcher.code } : {})}
+          onClose={() => setSwitcher({ open: false })}
+        />
+      ) : null}
+    </>
   );
 }

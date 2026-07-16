@@ -1,55 +1,46 @@
-// Prijatelji — everyone in your circle with a running balance. You add a friend
-// by phone number: that creates a PENDING entry and sends them an invite (a
-// request). They confirm by opening the invite and claiming their entry when
-// they join — at which point claimedBy is set and they become a real friend.
-// You can't conjure a confirmed friend out of thin air.
-import { useState } from 'react';
-import type { Person } from '../../types';
+// Prijatelji — your user-level friend roster (independent of any group). Add a
+// friend by phone number, in-app (no SMS): if they're registered, their profile
+// picture + name come back automatically. A friend's phone can never be changed
+// (feature 2); you rename or remove them. For friends who are in the currently
+// active group, their balance + Flik "Plačaj" is shown too.
+import { useEffect, useState } from 'react';
+import type { Friend } from '../../types';
 import { friendBalances } from '../data/derive';
+import { addFriend, loadFriends, removeFriend, renameFriend, useFriends } from '../data/friends';
 import { avatarSrcProp } from '../data/people';
-import { inviteUrl, store, useSession, useStore } from '../data/store';
+import { store, useSession, useStore } from '../data/store';
 import { formatPhone, normalizePhone, signedEur } from '../format';
 import { useFlik } from '../ui/FlikSheet';
 import { PAGE_PADDING } from '../ui/AppShell';
-import { Avatar, BottomSheet, Button, Card, FieldLabel, Segmented, TextField } from '../ui/kit';
-import { IconSearch } from '../ui/icons';
+import { Avatar, BottomSheet, Button, Card, FieldLabel, TextField } from '../ui/kit';
+import { IconLink, IconSearch } from '../ui/icons';
 
-type Sort = 'balance' | 'alpha';
-type EditState = { mode: 'add' } | { mode: 'edit'; person: Person } | null;
-
-const isConfirmed = (p: Person) => Boolean(p.claimedBy);
-
-function sendRequest(phone: string, name: string, inviteCode: string) {
-  const url = inviteUrl(inviteCode);
-  const msg = `Živjo${name ? ' ' + name : ''}! Pridruži se mi v SplitFlik, da razdeliva stroške: ${url}`;
-  // SMS deep link on mobile; harmless no-op elsewhere (we also copy the link).
-  try {
-    window.open(`sms:${phone}?&body=${encodeURIComponent(msg)}`, '_blank');
-  } catch {
-    // ignore
-  }
-  navigator.clipboard?.writeText(url).catch(() => {});
-}
+type SheetState = { mode: 'add' } | { mode: 'edit'; friend: Friend } | null;
 
 export function Friends() {
   const state = useStore();
   const session = useSession();
   const meId = session?.personId ?? '';
+  const userId = typeof state.authUserId === 'string' ? state.authUserId : '';
   const flik = useFlik();
+  const friends = useFriends();
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<Sort>('balance');
-  const [edit, setEdit] = useState<EditState>(null);
+  const [sheet, setSheet] = useState<SheetState>(null);
 
-  const inviteCode = state.group?.inviteCode ?? '';
+  useEffect(() => {
+    if (userId) void loadFriends(userId);
+  }, [userId]);
 
-  let friends = friendBalances(state, meId);
+  // Balances for friends who are members of the currently active group.
+  const balByPhone = new Map<string, number>();
+  for (const b of friendBalances(state, meId)) {
+    if (b.person.phone) balByPhone.set(b.person.phone, b.cents);
+  }
+
   const q = query.trim().toLowerCase();
-  if (q) friends = friends.filter((f) => f.person.name.toLowerCase().includes(q));
-  friends = [...friends].sort((a, b) =>
-    sort === 'balance'
-      ? Math.abs(b.cents) - Math.abs(a.cents)
-      : a.person.name.localeCompare(b.person.name, 'sl'),
-  );
+  const list = [...friends]
+    .filter((f) => !q || (f.name ?? f.phone).toLowerCase().includes(q) || f.phone.includes(q))
+    .sort((a, b) => (a.name ?? a.phone).localeCompare(b.name ?? b.phone, 'sl'));
 
   return (
     <div style={{ padding: PAGE_PADDING }}>
@@ -65,83 +56,51 @@ export function Friends() {
         />
       </div>
 
-      <Segmented<Sort>
-        value={sort}
-        onChange={setSort}
-        options={[
-          { value: 'balance', label: 'Po znesku' },
-          { value: 'alpha', label: 'Abecedno' },
-        ]}
-        style={{ marginBottom: 16, width: 'fit-content' }}
-      />
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {friends.map((f) => {
-          const pending = !isConfirmed(f.person);
-          const owes = f.cents < 0; // I owe them
-          const balColor = f.cents > 0 ? 'var(--pos)' : f.cents < 0 ? 'var(--neg)' : 'var(--text-sec)';
-          const hint = pending
-            ? 'Čaka na potrditev'
-            : f.cents > 0
-              ? 'Dolguje tebi'
-              : f.cents < 0
-                ? 'Ti dolguješ'
-                : 'Ni odprtih dolgov';
-          return (
-            <Card key={f.person.id} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px', ...(pending ? { opacity: 0.85 } : {}) }}>
-              <button
-                onClick={() => setEdit({ mode: 'edit', person: f.person })}
-                style={{ display: 'flex', alignItems: 'center', gap: 13, flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
-              >
-                <Avatar name={f.person.name} id={f.person.id} size={44} {...avatarSrcProp(f.person.avatarUrl)} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ font: '600 16px/1.2 Rubik', color: 'var(--text)' }}>{f.person.name}</div>
-                  <div style={{ font: '400 13px/1.3 Rubik', color: pending ? 'var(--pend)' : 'var(--text-sec)' }}>{hint}</div>
-                </div>
-              </button>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 7, flexShrink: 0 }}>
-                {pending ? (
-                  f.person.phone ? (
-                    <button
-                      onClick={() => {
-                        sendRequest(f.person.phone as string, f.person.name, inviteCode);
-                        store.toast(`Zahtevek ponovno poslan · ${f.person.name}`);
-                      }}
-                      style={{ border: '1px solid var(--border)', borderRadius: 9999, padding: '8px 14px', font: '600 13px/1 Rubik', background: 'transparent', color: 'var(--link)', cursor: 'pointer' }}
-                    >
-                      Pošlji znova
-                    </button>
-                  ) : null
-                ) : (
-                  <>
-                    <div style={{ font: '600 16px/1 Rubik', color: balColor }}>
-                      {f.cents === 0 ? 'Poravnano' : signedEur(f.cents)}
-                    </div>
+      {list.length === 0 ? (
+        <div style={{ font: '400 14px/1.5 Rubik', color: 'var(--text-sec)', padding: '24px 4px' }}>
+          {friends.length === 0 ? 'Nimaš še prijateljev. Dodaj jih s telefonsko številko.' : 'Ni zadetkov.'}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {list.map((f) => {
+            const bal = balByPhone.get(f.phone);
+            const title = f.name ?? formatPhone(f.phone);
+            const subtitle = f.name ? formatPhone(f.phone) : 'Še ni registriran';
+            const owes = bal !== undefined && bal < 0;
+            return (
+              <Card key={f.phone} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px' }}>
+                <button
+                  onClick={() => setSheet({ mode: 'edit', friend: f })}
+                  style={{ display: 'flex', alignItems: 'center', gap: 13, flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                >
+                  <Avatar name={f.name ?? f.phone} id={f.phone} size={44} {...avatarSrcProp(f.avatarUrl)} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ font: '600 16px/1.2 Rubik', color: 'var(--text)' }}>{title}</div>
+                    <div style={{ font: '400 13px/1.3 Rubik', color: 'var(--text-sec)' }}>{subtitle}</div>
+                  </div>
+                </button>
+                {bal !== undefined && bal !== 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 7, flexShrink: 0 }}>
+                    <div style={{ font: '600 15px/1 Rubik', color: bal > 0 ? 'var(--pos)' : 'var(--neg)' }}>{signedEur(bal)}</div>
                     {owes ? (
                       <Button
                         variant="pay"
-                        onClick={() =>
-                          flik.open({
-                            toName: f.person.name,
-                            ...(f.person.phone ? { toPhone: f.person.phone } : {}),
-                            amountCents: -f.cents,
-                          })
-                        }
+                        onClick={() => flik.open({ toName: f.name ?? formatPhone(f.phone), toPhone: f.phone, amountCents: -bal })}
                       >
                         Plačaj
                       </Button>
                     ) : null}
-                  </>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
         <button
-          onClick={() => setEdit({ mode: 'add' })}
+          onClick={() => setSheet({ mode: 'add' })}
           aria-label="Dodaj prijatelja"
           style={{ width: 52, height: 52, borderRadius: 9999, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 28, fontWeight: 300, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 6px 16px rgba(18,82,179,0.3)' }}
         >
@@ -149,74 +108,54 @@ export function Friends() {
         </button>
       </div>
 
-      {edit ? (
-        <FriendSheet
-          edit={edit}
-          groupId={state.group?.id ?? ''}
-          inviteCode={inviteCode}
-          existingPhones={state.people.map((p) => p.phone).filter((x): x is string => Boolean(x))}
-          onClose={() => setEdit(null)}
-        />
-      ) : null}
+      {sheet ? <FriendSheet sheet={sheet} userId={userId} onClose={() => setSheet(null)} /> : null}
     </div>
   );
 }
 
 function FriendSheet({
-  edit,
-  groupId,
-  inviteCode,
-  existingPhones,
+  sheet,
+  userId,
   onClose,
 }: {
-  edit: { mode: 'add' } | { mode: 'edit'; person: Person };
-  groupId: string;
-  inviteCode: string;
-  existingPhones: string[];
+  sheet: { mode: 'add' } | { mode: 'edit'; friend: Friend };
+  userId: string;
   onClose: () => void;
 }) {
-  const existing = edit.mode === 'edit' ? edit.person : null;
-  const [name, setName] = useState(existing?.name ?? '');
+  const existing = sheet.mode === 'edit' ? sheet.friend : null;
   const [phone, setPhone] = useState(existing?.phone ?? '');
+  const [name, setName] = useState(existing?.name ?? '');
 
-  const addByPhone = () => {
+  const inviteLink = typeof location !== 'undefined' ? location.origin + location.pathname : '';
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      store.toast('Povezava kopirana');
+    } catch {
+      store.toast('Kopiranje ni uspelo');
+    }
+  };
+
+  const add = async () => {
     const normalized = normalizePhone(phone);
     if (!normalized) return store.toast('Vnesi veljavno telefonsko številko.');
-    if (existingPhones.includes(normalized)) return store.toast('Prijatelj s to številko že obstaja.');
-    // Pending friend: no name yet (it comes from their own registration) and no
-    // claimedBy until they confirm. Show the phone as a placeholder until then.
-    store.savePerson({ id: crypto.randomUUID(), groupId, name: formatPhone(normalized), phone: normalized }, true);
-    sendRequest(normalized, '', inviteCode);
-    store.toast('Zahtevek poslan · prijatelj mora potrditi');
+    const friend = await addFriend(userId, normalized);
+    if (friend) store.toast(friend.name ? `Dodan ${friend.name}` : 'Prijatelj dodan');
     onClose();
   };
 
-  const saveEdit = () => {
+  const save = async () => {
     if (!existing) return;
     if (!name.trim()) return store.toast('Vnesi ime.');
-    let normalized: string | undefined;
-    if (phone.trim()) {
-      const n = normalizePhone(phone);
-      if (!n) return store.toast('Telefonska številka ni veljavna.');
-      normalized = n;
-    }
-    store.savePerson(
-      {
-        id: existing.id,
-        groupId,
-        name: name.trim(),
-        ...(normalized ? { phone: normalized } : {}),
-        ...(existing.claimedBy ? { claimedBy: existing.claimedBy } : {}),
-      },
-      false,
-    );
+    await renameFriend(userId, existing.phone, name.trim());
     store.toast('Prijatelj posodobljen');
     onClose();
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!existing) return;
-    store.deletePerson(existing.id);
+    await removeFriend(userId, existing.phone);
     store.toast('Prijatelj odstranjen');
     onClose();
   };
@@ -225,8 +164,8 @@ function FriendSheet({
     return (
       <BottomSheet title="Dodaj prijatelja" onClose={onClose}>
         <div style={{ font: '400 13px/1.5 Rubik', color: 'var(--text-sec)', marginBottom: 16 }}>
-          Prijatelja dodaš samo z njegovo telefonsko številko. Poslali mu bomo zahtevek — v prijatelje
-          se doda, ko ga potrdi, njegovo ime pa se prevzame iz njegove registracije.
+          Prijatelja dodaš z njegovo telefonsko številko. Če je registriran, se samodejno prikažeta
+          njegova slika in ime.
         </div>
         <FieldLabel>Telefonska številka</FieldLabel>
         <TextField
@@ -236,12 +175,18 @@ function FriendSheet({
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') addByPhone();
+            if (e.key === 'Enter') void add();
           }}
           style={{ marginBottom: 18 }}
         />
-        <Button variant="primary" full onClick={addByPhone}>
-          Pošlji zahtevek
+        <Button variant="primary" full onClick={() => void add()} style={{ marginBottom: 14 }}>
+          Dodaj prijatelja
+        </Button>
+        <div style={{ font: '500 13px/1 Rubik', color: 'var(--text-sec)', marginBottom: 8 }}>
+          Ali povabi prijatelje s povezavo
+        </div>
+        <Button variant="secondary" full onClick={copyLink}>
+          <IconLink size={16} color="var(--link)" strokeWidth={2} /> Kopiraj povezavo za povabilo
         </Button>
       </BottomSheet>
     );
@@ -249,14 +194,25 @@ function FriendSheet({
 
   return (
     <BottomSheet title="Uredi prijatelja" onClose={onClose}>
-      <FieldLabel>Ime in priimek</FieldLabel>
-      <TextField value={name} onChange={(e) => setName(e.target.value)} style={{ marginBottom: 14 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <Avatar name={name || existing.phone} id={existing.phone} size={72} {...avatarSrcProp(existing.avatarUrl)} />
+      </div>
+      <FieldLabel>Ime</FieldLabel>
+      <TextField value={name} onChange={(e) => setName(e.target.value)} placeholder="Ime prijatelja" style={{ marginBottom: 14 }} />
       <FieldLabel>Telefon</FieldLabel>
-      <TextField placeholder="031 123 456" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ marginBottom: 18 }} />
-      <Button variant="primary" full onClick={saveEdit} style={{ marginBottom: 10 }}>
+      <TextField
+        value={formatPhone(existing.phone)}
+        readOnly
+        disabled
+        style={{ marginBottom: 6, color: 'var(--text-sec)', background: 'var(--surface3)' }}
+      />
+      <div style={{ font: '400 12px/1.4 Rubik', color: 'var(--text-sec)', marginBottom: 18 }}>
+        Telefonske številke prijatelja ni mogoče spremeniti.
+      </div>
+      <Button variant="primary" full onClick={() => void save()} style={{ marginBottom: 10 }}>
         Shrani
       </Button>
-      <button onClick={remove} style={{ width: '100%', background: 'none', border: 'none', color: 'var(--neg)', font: '600 14px/1 Rubik', cursor: 'pointer', padding: 8 }}>
+      <button onClick={() => void remove()} style={{ width: '100%', background: 'none', border: 'none', color: 'var(--neg)', font: '600 14px/1 Rubik', cursor: 'pointer', padding: 8 }}>
         Odstrani prijatelja
       </button>
     </BottomSheet>

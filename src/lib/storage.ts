@@ -9,6 +9,7 @@ import {
 } from '@supabase/supabase-js';
 import type {
   Expense,
+  Friend,
   Group,
   Outing,
   Person,
@@ -535,6 +536,108 @@ export async function joinAsNewPerson(
     }),
   );
   return personId;
+}
+
+// --- User-level: my groups + friends roster ---
+
+interface FriendRow {
+  owner: string;
+  phone: string;
+  name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+function friendFromRow(r: FriendRow): Friend {
+  return {
+    owner: r.owner,
+    phone: r.phone,
+    ...(r.name ? { name: r.name } : {}),
+    ...(r.avatar_url ? { avatarUrl: r.avatar_url } : {}),
+  };
+}
+
+/** All groups the user is a member of, with the user's person id in each. */
+export async function fetchMyGroups(userId: string): Promise<{ group: Group; personId: string }[]> {
+  const pe = await db().from('people').select('id,group_id').eq('claimed_by', userId);
+  if (pe.error) throw pe.error;
+  const rows = (pe.data ?? []) as { id: string; group_id: string }[];
+  const myPersonByGroup = new Map<string, string>();
+  for (const r of rows) if (!myPersonByGroup.has(r.group_id)) myPersonByGroup.set(r.group_id, r.id);
+  if (myPersonByGroup.size === 0) return [];
+  const g = await db().from('groups').select('*').in('id', [...myPersonByGroup.keys()]);
+  if (g.error) throw g.error;
+  return ((g.data ?? []) as GroupRow[])
+    .map(groupFromRow)
+    .map((group) => ({ group, personId: myPersonByGroup.get(group.id) as string }));
+}
+
+/** Looks up a registered person's profile (name + avatar) by phone. */
+export async function lookupPersonByPhone(
+  phone: string,
+): Promise<{ name: string; avatarUrl?: string } | null> {
+  const pe = await db()
+    .from('people')
+    .select('name,avatar_url')
+    .eq('phone', phone)
+    .not('claimed_by', 'is', null)
+    .limit(1);
+  if (pe.error) throw pe.error;
+  const rows = (pe.data ?? []) as { name: string; avatar_url: string | null }[];
+  const first = rows[0];
+  if (!first) return null;
+  return { name: first.name, ...(first.avatar_url ? { avatarUrl: first.avatar_url } : {}) };
+}
+
+export async function listFriends(userId: string): Promise<Friend[]> {
+  const f = await db().from('friends').select('*').eq('owner', userId);
+  if (f.error) throw f.error;
+  return ((f.data ?? []) as FriendRow[]).map(friendFromRow);
+}
+
+/** Adds a friend by phone, caching their profile (name + avatar) if registered. */
+export async function addFriend(userId: string, phone: string): Promise<Friend> {
+  const profile = await lookupPersonByPhone(phone);
+  await throwing(
+    db()
+      .from('friends')
+      .upsert(
+        { owner: userId, phone, name: profile?.name ?? null, avatar_url: profile?.avatarUrl ?? null },
+        { onConflict: 'owner,phone' },
+      ),
+  );
+  return {
+    owner: userId,
+    phone,
+    ...(profile?.name ? { name: profile.name } : {}),
+    ...(profile?.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
+  };
+}
+
+export async function removeFriend(userId: string, phone: string): Promise<void> {
+  await throwing(db().from('friends').delete().eq('owner', userId).eq('phone', phone));
+}
+
+/** Renames a friend (their phone can never change — that identifies them). */
+export async function updateFriendName(userId: string, phone: string, name: string): Promise<void> {
+  await throwing(db().from('friends').update({ name }).eq('owner', userId).eq('phone', phone));
+}
+
+/** Adds friends as pending members of a group; they claim their entry on join. */
+export async function addGroupMembers(
+  groupId: string,
+  members: { name?: string; phone: string; avatarUrl?: string }[],
+): Promise<void> {
+  if (members.length === 0) return;
+  const rows = members.map((m) => ({
+    id: crypto.randomUUID(),
+    group_id: groupId,
+    name: m.name ?? m.phone,
+    phone: m.phone,
+    avatar_url: m.avatarUrl ?? null,
+    claimed_by: null,
+  }));
+  await throwing(db().from('people').insert(rows));
 }
 
 // --- In-group actions (optimistic, fire-and-forget) ---

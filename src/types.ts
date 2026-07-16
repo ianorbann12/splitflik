@@ -20,6 +20,15 @@ export interface Person {
   avatarUrl?: string;
 }
 
+/** A user-level friend (added by phone, independent of any group). */
+export interface Friend {
+  /** Auth user id of the owner who added this friend. */
+  owner: string;
+  phone: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
 export interface Outing {
   id: string;
   groupId: string;
