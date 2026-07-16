@@ -31,6 +31,23 @@ export interface Friend {
   avatarUrl?: string;
 }
 
+/**
+ * A pending friendship request: the sender (from*) asks the person reachable at
+ * `toPhone` to become friends. Accepting creates mutual Friend rows.
+ */
+export interface FriendRequest {
+  id: string;
+  /** Auth user id of the sender. */
+  fromOwner: string;
+  fromName?: string;
+  fromPhone?: string;
+  fromAvatarUrl?: string;
+  /** Recipient's phone (how they're addressed before they're friends). */
+  toPhone: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: number;
+}
+
 export interface Outing {
   id: string;
   groupId: string;

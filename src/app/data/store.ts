@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 import * as live from '../../lib/storage';
 import * as demo from './demoStore';
 import type { AppState } from '../../lib/storage';
-import type { Expense, Friend, Group, Outing, Person, SettlementDraft } from '../../types';
+import type { Expense, Friend, FriendRequest, Group, Outing, Person, SettlementDraft } from '../../types';
 
 export type StoreMode = 'live' | 'demo';
 
@@ -39,6 +39,17 @@ export interface StoreApi {
   addFriend(userId: string, phone: string): Promise<Friend>;
   removeFriend(userId: string, phone: string): Promise<void>;
   updateFriendName(userId: string, phone: string, name: string): Promise<void>;
+  sendFriendRequest(
+    from: { userId: string; name?: string; phone?: string; avatarUrl?: string },
+    toPhone: string,
+  ): Promise<void>;
+  listIncomingRequests(myPhone: string): Promise<FriendRequest[]>;
+  listOutgoingRequests(userId: string): Promise<FriendRequest[]>;
+  acceptFriendRequest(
+    req: FriendRequest,
+    me: { userId: string; name?: string; phone?: string; avatarUrl?: string },
+  ): Promise<void>;
+  declineFriendRequest(requestId: string): Promise<void>;
   addGroupMembers(
     groupId: string,
     members: { name?: string; phone: string; avatarUrl?: string }[],

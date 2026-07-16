@@ -11,6 +11,8 @@ import { AuthGate } from './auth/AuthGate';
 import { useBootstrap } from './useBootstrap';
 import { setSession, store, useSession, useStore } from './data/store';
 import { loadFriends } from './data/friends';
+import { loadRequests, useIncomingRequests } from './data/friendRequests';
+import { getLocalProfile } from './data/profile';
 import { notifications } from './data/derive';
 import { useNotifReadAt } from './data/uiPrefs';
 import { Home } from './screens/Home';
@@ -123,10 +125,16 @@ function MainApp({ joinCode }: { joinCode?: string }) {
   });
 
   const { unreadCount } = notifications(state, meId, readAt);
+  const incoming = useIncomingRequests();
+  const myPhone = getLocalProfile()?.phone ?? state.people.find((p) => p.id === meId)?.phone ?? '';
 
   useEffect(() => {
     if (userId) void loadFriends(userId);
   }, [userId]);
+
+  useEffect(() => {
+    if (userId) void loadRequests(userId, myPhone);
+  }, [userId, myPhone]);
 
   // Arrived via an invite link with no active group → open the join sheet.
   useEffect(() => {
@@ -169,7 +177,7 @@ function MainApp({ joinCode }: { joinCode?: string }) {
         tab={tab}
         onTab={setTab}
         panels={panels}
-        unread={unreadCount}
+        unread={unreadCount + incoming.length}
         overlay={overlay}
         toast={<ToastHost />}
       />

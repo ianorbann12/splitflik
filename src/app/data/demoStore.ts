@@ -3,7 +3,7 @@
 // — so the whole app is explorable locally with realistic seeded data. Screens
 // never import this directly; store.ts picks it over the real SDK.
 import type { AppState } from '../../lib/storage';
-import type { Friend, Group, Outing, Person, Settlement, SettlementDraft } from '../../types';
+import type { Friend, FriendRequest, Group, Outing, Person, Settlement, SettlementDraft } from '../../types';
 import type { Expense } from '../../types';
 import { buildDemoData, DEMO_AUTH_USER, DEMO_INVITE_CODE, DEMO_ME_ID } from './demoSeed';
 import { setActiveCurrency } from '../../lib/format';
@@ -12,6 +12,7 @@ import { setActiveCurrency } from '../../lib/format';
 // single active-group snapshot in `state`.
 let demoGroups: Group[] = [];
 let demoFriends: Friend[] = [];
+let demoRequests: FriendRequest[] = [];
 let demoInited = false;
 const createdGroupPeople: Record<string, Person[]> = {};
 
@@ -28,6 +29,18 @@ function ensureDemoInit(): void {
       ...(p.name ? { name: p.name } : {}),
       ...(p.avatarUrl ? { avatarUrl: p.avatarUrl } : {}),
     }));
+  // A sample incoming request (to the demo user's phone) so the flow is visible.
+  demoRequests = [
+    {
+      id: 'req-demo-1',
+      fromOwner: 'u-nejc',
+      fromName: 'Nejc Kovač',
+      fromPhone: '031444555',
+      toPhone: '041234567',
+      status: 'pending',
+      createdAt: Date.now() - 3_600_000,
+    },
+  ];
 }
 
 function seededState(): AppState {
@@ -230,6 +243,59 @@ export async function addGroupMembers(
 
 export async function updateFriendName(_userId: string, phone: string, name: string): Promise<void> {
   demoFriends = demoFriends.map((f) => (f.phone === phone ? { ...f, name } : f));
+}
+
+export async function sendFriendRequest(
+  from: { userId: string; name?: string; phone?: string; avatarUrl?: string },
+  toPhone: string,
+): Promise<void> {
+  ensureDemoInit();
+  demoRequests = demoRequests.filter((r) => !(r.fromOwner === from.userId && r.toPhone === toPhone));
+  demoRequests = [
+    ...demoRequests,
+    {
+      id: crypto.randomUUID(),
+      fromOwner: from.userId,
+      ...(from.name ? { fromName: from.name } : {}),
+      ...(from.phone ? { fromPhone: from.phone } : {}),
+      ...(from.avatarUrl ? { fromAvatarUrl: from.avatarUrl } : {}),
+      toPhone,
+      status: 'pending',
+      createdAt: Date.now(),
+    },
+  ];
+}
+
+export async function listIncomingRequests(myPhone: string): Promise<FriendRequest[]> {
+  ensureDemoInit();
+  return demoRequests.filter((r) => r.toPhone === myPhone && r.status === 'pending');
+}
+
+export async function listOutgoingRequests(userId: string): Promise<FriendRequest[]> {
+  ensureDemoInit();
+  return demoRequests.filter((r) => r.fromOwner === userId && r.status === 'pending');
+}
+
+export async function acceptFriendRequest(
+  req: FriendRequest,
+  me: { userId: string; name?: string; phone?: string; avatarUrl?: string },
+): Promise<void> {
+  demoRequests = demoRequests.map((r) => (r.id === req.id ? { ...r, status: 'accepted' } : r));
+  if (req.fromPhone && !demoFriends.some((f) => f.phone === req.fromPhone)) {
+    demoFriends = [
+      ...demoFriends,
+      {
+        owner: me.userId,
+        phone: req.fromPhone,
+        ...(req.fromName ? { name: req.fromName } : {}),
+        ...(req.fromAvatarUrl ? { avatarUrl: req.fromAvatarUrl } : {}),
+      },
+    ];
+  }
+}
+
+export async function declineFriendRequest(requestId: string): Promise<void> {
+  demoRequests = demoRequests.map((r) => (r.id === requestId ? { ...r, status: 'declined' } : r));
 }
 
 export async function fetchGroupByInvite(

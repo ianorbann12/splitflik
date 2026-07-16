@@ -1,12 +1,15 @@
 // Obvestila — payment requests, incoming payments and settlement notices,
 // grouped by recency. Actionable cards carry a Flik "Plačaj" or an "Opomni"
 // reminder. Derived entirely from the group's settlements.
+import { useEffect } from 'react';
 import { useSession, useStore } from '../data/store';
 import { notifications, type Notif } from '../data/derive';
+import { acceptRequest, declineRequest, loadRequests, useIncomingRequests } from '../data/friendRequests';
+import { getLocalProfile } from '../data/profile';
 import { markNotificationsRead, useNotifReadAt } from '../data/uiPrefs';
 import { avatarSrcProp, avatarUrlOf, firstName } from '../data/people';
 import { store } from '../data/store';
-import { formatEur } from '../format';
+import { formatEur, formatPhone } from '../format';
 import { useFlik } from '../ui/FlikSheet';
 import { PAGE_PADDING } from '../ui/AppShell';
 import { Avatar, Button, EmptyState } from '../ui/kit';
@@ -16,9 +19,27 @@ export function Notifications() {
   const state = useStore();
   const session = useSession();
   const meId = session?.personId ?? '';
+  const userId = typeof state.authUserId === 'string' ? state.authUserId : '';
   const readAt = useNotifReadAt();
   const flik = useFlik();
   const { groups } = notifications(state, meId, readAt);
+  const incoming = useIncomingRequests();
+
+  const profile = getLocalProfile();
+  const meP = state.people.find((p) => p.id === meId);
+  const myPhone = profile?.phone ?? meP?.phone ?? '';
+  const meName = profile?.name ?? meP?.name;
+  const meAvatar = profile?.avatarUrl ?? meP?.avatarUrl;
+  const me = {
+    userId,
+    ...(meName ? { name: meName } : {}),
+    ...(myPhone ? { phone: myPhone } : {}),
+    ...(meAvatar ? { avatarUrl: meAvatar } : {}),
+  };
+
+  useEffect(() => {
+    if (userId) void loadRequests(userId, myPhone);
+  }, [userId, myPhone]);
 
   const phoneOf = (id: string) => state.people.find((p) => p.id === id)?.phone;
 
@@ -65,7 +86,50 @@ export function Notifications() {
         </button>
       </div>
 
-      {groups.length === 0 ? (
+      {incoming.length > 0 ? (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ font: '600 13px/1 Rubik', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 11 }}>
+            Prošnje za prijateljstvo
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {incoming.map((r) => (
+              <div
+                key={r.id}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 20, padding: '12px 14px' }}
+              >
+                <Avatar name={r.fromName ?? r.fromPhone ?? '?'} id={r.fromOwner} size={40} {...avatarSrcProp(r.fromAvatarUrl)} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: '400 14px/1.35 Rubik', color: 'var(--text)' }}>
+                    <b>{r.fromName ?? formatPhone(r.fromPhone ?? '')}</b> te želi dodati med prijatelje
+                  </div>
+                  {r.fromPhone && r.fromName ? (
+                    <div style={{ font: '400 12px/1.3 Rubik', color: 'var(--text-sec)', marginTop: 2 }}>{formatPhone(r.fromPhone)}</div>
+                  ) : null}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button
+                    onClick={() => void declineRequest(r.id)}
+                    style={{ border: '1px solid var(--border)', borderRadius: 9999, padding: '9px 14px', font: '600 13px/1 Rubik', background: 'transparent', color: 'var(--text-sec)', cursor: 'pointer' }}
+                  >
+                    Zavrni
+                  </button>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      void acceptRequest(r, me);
+                      store.toast(r.fromName ? `Zdaj sta prijatelja · ${firstName(r.fromName)}` : 'Prijateljstvo sprejeto');
+                    }}
+                  >
+                    Sprejmi
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {groups.length === 0 && incoming.length === 0 ? (
         <EmptyState
           icon={<IconBell size={30} color="var(--text-sec)" />}
           title="Ni obvestil"

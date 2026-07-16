@@ -116,6 +116,22 @@ create table public.friends (
 );
 create index friends_owner_idx on public.friends (owner);
 
+-- Pending friendship requests: sender (from_*) asks the person at to_phone to
+-- become friends; accepting creates mutual rows in `friends`.
+create table public.friend_requests (
+  id uuid primary key default gen_random_uuid(),
+  from_owner uuid not null,
+  from_name text,
+  from_phone text,
+  from_avatar_url text,
+  to_phone text not null check (to_phone ~ '^0[1-9][0-9]{7}$'),
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'declined')),
+  created_at timestamptz not null default now(),
+  unique (from_owner, to_phone)
+);
+create index friend_requests_to_idx on public.friend_requests (to_phone);
+create index friend_requests_from_idx on public.friend_requests (from_owner);
+
 -- RLS: enabled, permissive (see access model note above).
 alter table public.groups enable row level security;
 alter table public.people enable row level security;
@@ -123,6 +139,7 @@ alter table public.outings enable row level security;
 alter table public.expenses enable row level security;
 alter table public.settlements enable row level security;
 alter table public.friends enable row level security;
+alter table public.friend_requests enable row level security;
 
 create policy groups_all on public.groups for all using (true) with check (true);
 create policy people_all on public.people for all using (true) with check (true);
@@ -130,6 +147,7 @@ create policy outings_all on public.outings for all using (true) with check (tru
 create policy expenses_all on public.expenses for all using (true) with check (true);
 create policy settlements_all on public.settlements for all using (true) with check (true);
 create policy friends_all on public.friends for all using (true) with check (true);
+create policy friend_requests_all on public.friend_requests for all using (true) with check (true);
 
 -- Realtime change feeds for live sync (PLAN.md §10).
 alter publication supabase_realtime add table

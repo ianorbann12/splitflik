@@ -10,6 +10,7 @@ import {
 import type {
   Expense,
   Friend,
+  FriendRequest,
   Group,
   Outing,
   Person,
@@ -639,6 +640,114 @@ export async function removeFriend(userId: string, phone: string): Promise<void>
 /** Renames a friend (their phone can never change — that identifies them). */
 export async function updateFriendName(userId: string, phone: string, name: string): Promise<void> {
   await throwing(db().from('friends').update({ name }).eq('owner', userId).eq('phone', phone));
+}
+
+// --- Friend requests (accept/decline) ---
+
+interface FriendRequestRow {
+  id: string;
+  from_owner: string;
+  from_name: string | null;
+  from_phone: string | null;
+  from_avatar_url: string | null;
+  to_phone: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+}
+
+function friendRequestFromRow(r: FriendRequestRow): FriendRequest {
+  return {
+    id: r.id,
+    fromOwner: r.from_owner,
+    ...(r.from_name ? { fromName: r.from_name } : {}),
+    ...(r.from_phone ? { fromPhone: r.from_phone } : {}),
+    ...(r.from_avatar_url ? { fromAvatarUrl: r.from_avatar_url } : {}),
+    toPhone: r.to_phone,
+    status: r.status,
+    createdAt: Date.parse(r.created_at),
+  };
+}
+
+interface RequestSender {
+  userId: string;
+  name?: string;
+  phone?: string;
+  avatarUrl?: string;
+}
+
+/** Sends (or re-sends) a pending friend request to the person at `toPhone`. */
+export async function sendFriendRequest(from: RequestSender, toPhone: string): Promise<void> {
+  if (!from.userId || !toPhone) throw new Error('sendFriendRequest requires a sender and phone');
+  await throwing(
+    db()
+      .from('friend_requests')
+      .upsert(
+        {
+          from_owner: from.userId,
+          from_name: from.name ?? null,
+          from_phone: from.phone ?? null,
+          from_avatar_url: from.avatarUrl ?? null,
+          to_phone: toPhone,
+          status: 'pending',
+        },
+        { onConflict: 'from_owner,to_phone' },
+      ),
+  );
+}
+
+/** Pending requests addressed to me (by my phone). */
+export async function listIncomingRequests(myPhone: string): Promise<FriendRequest[]> {
+  if (!myPhone) return [];
+  const r = await db()
+    .from('friend_requests')
+    .select('*')
+    .eq('to_phone', myPhone)
+    .eq('status', 'pending');
+  if (r.error) throw r.error;
+  return ((r.data ?? []) as FriendRequestRow[]).map(friendRequestFromRow);
+}
+
+/** My still-pending outgoing requests (to show "waiting" in my roster). */
+export async function listOutgoingRequests(userId: string): Promise<FriendRequest[]> {
+  if (!userId) return [];
+  const r = await db()
+    .from('friend_requests')
+    .select('*')
+    .eq('from_owner', userId)
+    .eq('status', 'pending');
+  if (r.error) throw r.error;
+  return ((r.data ?? []) as FriendRequestRow[]).map(friendRequestFromRow);
+}
+
+/** Accepts a request: creates mutual friend rows, then marks it accepted. */
+export async function acceptFriendRequest(req: FriendRequest, me: RequestSender): Promise<void> {
+  if (req.fromPhone) {
+    await throwing(
+      db().from('friends').upsert(
+        {
+          owner: me.userId,
+          phone: req.fromPhone,
+          name: req.fromName ?? null,
+          avatar_url: req.fromAvatarUrl ?? null,
+        },
+        { onConflict: 'owner,phone' },
+      ),
+    );
+  }
+  if (me.phone) {
+    await throwing(
+      db().from('friends').upsert(
+        { owner: req.fromOwner, phone: me.phone, name: me.name ?? null, avatar_url: me.avatarUrl ?? null },
+        { onConflict: 'owner,phone' },
+      ),
+    );
+  }
+  await throwing(db().from('friend_requests').update({ status: 'accepted' }).eq('id', req.id));
+}
+
+export async function declineFriendRequest(requestId: string): Promise<void> {
+  if (!requestId) return;
+  await throwing(db().from('friend_requests').update({ status: 'declined' }).eq('id', requestId));
 }
 
 /**
