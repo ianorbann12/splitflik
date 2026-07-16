@@ -35,24 +35,24 @@ export function GroupGate({ initialCode }: { initialCode?: string }) {
   const [found, setFound] = useState<{ group: Group; people: Person[] } | null>(null);
   const [addingSelf, setAddingSelf] = useState(false);
 
-  const phoneOrError = (raw: string): string | undefined | null => {
-    if (!raw.trim()) return undefined;
-    const norm = normalizePhone(raw);
-    return norm; // null when invalid
+  // Phone is required for signup — it's the payee number for the Flik handoff.
+  const requirePhone = (raw: string): string | null => {
+    if (!raw.trim()) return null;
+    return normalizePhone(raw); // null when invalid
   };
 
   const doCreate = async () => {
     setError(null);
     if (!groupName.trim()) return setError('Poimenuj skupino.');
     if (!myName.trim()) return setError('Vnesi svoje ime.');
-    const phone = phoneOrError(myPhone);
-    if (phone === null) return setError('Telefonska številka ni veljavna (npr. 031 123 456).');
+    const phone = requirePhone(myPhone);
+    if (!phone) return setError('Vnesi veljavno telefonsko številko (npr. 031 123 456).');
     setBusy(true);
     try {
       const inviteCode = newInviteCode();
       const { groupId, personId } = await store.createGroup(groupName.trim(), inviteCode, {
         name: myName.trim(),
-        ...(phone ? { phone } : {}),
+        phone,
         claimedBy: authUserId,
       });
       setSession({ groupId, personId, inviteCode });
@@ -100,14 +100,14 @@ export function GroupGate({ initialCode }: { initialCode?: string }) {
     if (!found) return;
     setError(null);
     if (!myName.trim()) return setError('Vnesi svoje ime.');
-    const phone = phoneOrError(myPhone);
-    if (phone === null) return setError('Telefonska številka ni veljavna.');
+    const phone = requirePhone(myPhone);
+    if (!phone) return setError('Vnesi veljavno telefonsko številko.');
     setBusy(true);
     try {
       const personId = await store.joinAsNewPerson(
         found.group.id,
         myName.trim(),
-        phone ?? undefined,
+        phone,
         authUserId,
       );
       setSession({ groupId: found.group.id, personId, inviteCode: found.group.inviteCode });
@@ -156,7 +156,7 @@ export function GroupGate({ initialCode }: { initialCode?: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <TextField placeholder="Ime in priimek" value={myName} onChange={(e) => setMyName(e.target.value)} />
             <TextField
-              placeholder="Telefon (neobvezno)"
+              placeholder="Telefon"
               inputMode="tel"
               value={myPhone}
               onChange={(e) => setMyPhone(e.target.value)}
@@ -217,7 +217,7 @@ export function GroupGate({ initialCode }: { initialCode?: string }) {
             <TextField placeholder="Ime in priimek" value={myName} onChange={(e) => setMyName(e.target.value)} />
           </div>
           <div>
-            <FieldLabel>Telefon (neobvezno)</FieldLabel>
+            <FieldLabel>Telefon</FieldLabel>
             <TextField placeholder="031 123 456" inputMode="tel" value={myPhone} onChange={(e) => setMyPhone(e.target.value)} />
           </div>
           {error ? <div style={{ font: '400 13px/1.4 Rubik', color: 'var(--neg)' }}>{error}</div> : null}

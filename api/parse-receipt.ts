@@ -5,7 +5,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sanitizeResult, validateRequest } from './_validate';
 
-const MODEL = 'claude-sonnet-5';
+// Vision model id. Defaults to Claude; override with RECEIPT_MODEL to route
+// through a proxy (e.g. LiteLLM + ANTHROPIC_BASE_URL) to another provider.
+const MODEL = process.env['RECEIPT_MODEL'] ?? 'claude-sonnet-5';
 
 const RECEIPT_TOOL: Anthropic.Tool = {
   name: 'report_receipt',
