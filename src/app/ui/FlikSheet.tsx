@@ -4,14 +4,7 @@
 // and keeps the Slovenian disclaimer visible. The user pays in NLB Pay itself
 // and taps "mark as paid" here afterwards.
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import {
-  copyAmount,
-  copyText,
-  detectPlatform,
-  FLIK_DISCLAIMER,
-  NLB_PAY_APP_STORE_URL,
-  NLB_PAY_PLAY_URL,
-} from '../../lib/flik';
+import { copyAmount, copyText, FLIK_DISCLAIMER, openPaymentApp, PAY_APPS } from '../../lib/flik';
 import { formatEur, formatPhone } from '../format';
 import { store } from '../data/store';
 import { Avatar, Button } from './kit';
@@ -35,10 +28,6 @@ const FlikContext = createContext<FlikContextValue>({ open: () => {} });
 
 export function useFlik(): FlikContextValue {
   return useContext(FlikContext);
-}
-
-function storeUrl(): string {
-  return detectPlatform() === 'ios' ? NLB_PAY_APP_STORE_URL : NLB_PAY_PLAY_URL;
 }
 
 export function FlikProvider({ children }: { children: ReactNode }) {
@@ -236,20 +225,21 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
             marginBottom: 12,
           }}
         >
-          1. Odpri NLB Pay in izberi <b style={{ color: 'var(--text)' }}>Flik plačilo</b>.<br />
+          1. Odpri svojo aplikacijo (NLB Pay ali Flik) in izberi <b style={{ color: 'var(--text)' }}>Flik plačilo</b>.<br />
           2. Prilepi <b style={{ color: 'var(--text)' }}>številko prejemnika</b>, <b style={{ color: 'var(--text)' }}>znesek</b> in <b style={{ color: 'var(--text)' }}>razlog</b> (gumbi »Kopiraj« zgoraj).
         </div>
 
-        <a
-          href={storeUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ textDecoration: 'none', display: 'block', marginBottom: 10 }}
-        >
-          <Button variant="primary" full>
-            Odpri NLB Pay
+        <div style={{ font: '500 12px/1 Rubik', color: 'var(--text-sec)', marginBottom: 8 }}>
+          Nadaljuj v svoji aplikaciji
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <Button variant="primary" full onClick={() => openPaymentApp(PAY_APPS[0]!)}>
+            NLB Pay
           </Button>
-        </a>
+          <Button variant="secondary" full onClick={() => openPaymentApp(PAY_APPS[1]!)}>
+            Flik Pay
+          </Button>
+        </div>
 
         {target.settlementId ? (
           <Button variant="secondary" full onClick={onMarkPaid} style={{ marginBottom: 14 }}>

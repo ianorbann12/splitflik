@@ -140,6 +140,13 @@ Pay store pages, and show short "paste it in NLB Pay" steps — while keeping th
 Slovenian disclaimer (`FLIK_DISCLAIMER`) visible at all times. Never render or
 accept card data.
 
+`openPaymentApp(app)` opens the user's chosen wallet — **NLB Pay** *or* the
+standalone **Flik Pay** app (`PAY_APPS`). On Android it launches the installed
+app directly (Chrome `intent://` + package id, Play Store fallback); on iOS it
+opens the App Store page (no public URL scheme exists to launch the app, and
+iOS surfaces "Open" when it's installed). This is still a handoff — no scheme,
+API, or endpoint is called.
+
 ## 4. `POST /api/parse-receipt`
 
 Turns a receipt photo into structured items. Stateless; the image is parsed
