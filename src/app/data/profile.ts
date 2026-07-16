@@ -35,3 +35,8 @@ export function getLocalProfile(): LocalProfile | null {
 export function setLocalProfile(profile: LocalProfile): void {
   writeLocal(KEY, JSON.stringify(profile));
 }
+
+/** Clears the device's local identity — used on logout (one account per device). */
+export function clearLocalProfile(): void {
+  writeLocal(KEY, null);
+}

@@ -103,13 +103,22 @@ export function initAuth(): void {
   if (state.authUserId === 'loading') setState({ authUserId: DEMO_AUTH_USER });
 }
 
-export async function authSignUp(): Promise<'ok' | 'confirm'> {
+export async function authSignUp(
+  _email: string,
+  _password: string,
+  _profile?: { name?: string; phone?: string; avatarUrl?: string },
+): Promise<'ok' | 'confirm' | 'phone_taken'> {
   setState({ authUserId: DEMO_AUTH_USER });
   return 'ok';
 }
 
-export async function authSignIn(): Promise<void> {
+export async function authSignIn(): Promise<string | null> {
   setState({ authUserId: DEMO_AUTH_USER });
+  return DEMO_AUTH_USER;
+}
+
+export async function fetchProfile(): Promise<{ name?: string; phone?: string; avatarUrl?: string } | null> {
+  return null;
 }
 
 export async function authSignOut(): Promise<void> {

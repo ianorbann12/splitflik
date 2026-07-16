@@ -43,7 +43,14 @@ export function AuthGate() {
     setBusy(true);
     try {
       if (mode === 'signup') {
-        const result = await store.authSignUp(email.trim(), password);
+        const result = await store.authSignUp(email.trim(), password, {
+          name: name.trim(),
+          phone: normalizedPhone as string,
+        });
+        if (result === 'phone_taken') {
+          setError('Ta telefonska številka je že povezana z drugim računom.');
+          return;
+        }
         // Save the profile regardless of email-confirmation state (it's local).
         setLocalProfile({ name: name.trim(), phone: normalizedPhone as string });
         if (result === 'confirm') {
@@ -51,7 +58,19 @@ export function AuthGate() {
           return;
         }
       } else {
-        await store.authSignIn(email.trim(), password);
+        // Sign in, then hydrate the local profile from this account (so your
+        // name follows you to a new device — one identity per account).
+        const uid = await store.authSignIn(email.trim(), password);
+        if (uid) {
+          const prof = await store.fetchProfile(uid);
+          if (prof?.name && prof.phone) {
+            setLocalProfile({
+              name: prof.name,
+              phone: prof.phone,
+              ...(prof.avatarUrl ? { avatarUrl: prof.avatarUrl } : {}),
+            });
+          }
+        }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';

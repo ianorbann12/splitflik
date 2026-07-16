@@ -15,9 +15,14 @@ export interface StoreApi {
   toast(message: string): void;
   isConfigured(): boolean;
   initAuth(): void;
-  authSignUp(email: string, password: string): Promise<'ok' | 'confirm'>;
-  authSignIn(email: string, password: string): Promise<void>;
+  authSignUp(
+    email: string,
+    password: string,
+    profile?: { name?: string; phone?: string; avatarUrl?: string },
+  ): Promise<'ok' | 'confirm' | 'phone_taken'>;
+  authSignIn(email: string, password: string): Promise<string | null>;
   authSignOut(): Promise<void>;
+  fetchProfile(userId: string): Promise<{ name?: string; phone?: string; avatarUrl?: string } | null>;
   initGroup(groupId: string): Promise<void>;
   teardownGroup(): void;
   refetch(): Promise<void>;

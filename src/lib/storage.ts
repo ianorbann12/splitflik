@@ -380,16 +380,85 @@ export function initAuth(): void {
   });
 }
 
-/** Returns 'confirm' when the project still requires email confirmation. */
-export async function authSignUp(email: string, password: string): Promise<'ok' | 'confirm'> {
+export interface UserProfile {
+  name?: string;
+  phone?: string;
+  avatarUrl?: string;
+}
+
+interface ProfileRow {
+  user_id: string;
+  name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+/** True if a phone is already registered to an account (one phone = one user). */
+export async function isPhoneRegistered(phone: string): Promise<boolean> {
+  if (!phone) return false;
+  const r = await db().from('profiles').select('user_id').eq('phone', phone).limit(1);
+  if (r.error) throw r.error;
+  return (r.data ?? []).length > 0;
+}
+
+/** The canonical profile (name/phone/avatar) for a user, if registered. */
+export async function fetchProfile(userId: string): Promise<UserProfile | null> {
+  if (!userId) return null;
+  const r = await db().from('profiles').select('*').eq('user_id', userId).maybeSingle();
+  if (r.error) throw r.error;
+  const row = r.data as ProfileRow | null;
+  if (!row) return null;
+  return {
+    ...(row.name ? { name: row.name } : {}),
+    ...(row.phone ? { phone: row.phone } : {}),
+    ...(row.avatar_url ? { avatarUrl: row.avatar_url } : {}),
+  };
+}
+
+async function saveProfile(userId: string, profile: UserProfile): Promise<void> {
+  await throwing(
+    db().from('profiles').upsert(
+      {
+        user_id: userId,
+        name: profile.name ?? null,
+        phone: profile.phone ?? null,
+        avatar_url: profile.avatarUrl ?? null,
+      },
+      { onConflict: 'user_id' },
+    ),
+  );
+}
+
+/**
+ * Registers a new account. Returns 'phone_taken' if the phone already belongs to
+ * another user, 'confirm' when email confirmation is required, else 'ok'.
+ * The email is unique by virtue of Supabase Auth; the phone by the profiles table.
+ */
+export async function authSignUp(
+  email: string,
+  password: string,
+  profile?: UserProfile,
+): Promise<'ok' | 'confirm' | 'phone_taken'> {
+  if (profile?.phone && (await isPhoneRegistered(profile.phone))) return 'phone_taken';
   const { data, error } = await db().auth.signUp({ email, password });
   if (error) throw error;
+  const userId = data.user?.id ?? data.session?.user.id ?? null;
+  if (userId && profile) {
+    try {
+      await saveProfile(userId, profile);
+    } catch {
+      // lost a rare uniqueness race, or transient — the local profile still holds
+    }
+  }
   return data.session ? 'ok' : 'confirm';
 }
 
-export async function authSignIn(email: string, password: string): Promise<void> {
-  const { error } = await db().auth.signInWithPassword({ email, password });
+/** Signs in and returns the authenticated user id (for loading their profile). */
+export async function authSignIn(email: string, password: string): Promise<string | null> {
+  const { data, error } = await db().auth.signInWithPassword({ email, password });
   if (error) throw error;
+  return data.user?.id ?? null;
 }
 
 export async function authSignOut(): Promise<void> {

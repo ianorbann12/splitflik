@@ -41,6 +41,7 @@ cents**; all client timestamps are epoch milliseconds (DB stores timestamptz).
 | `settlements` | materialised debts | `status` ∈ `pending`/`paid`; created only via the `settle_outing` RPC |
 | `friends` | user-level friend roster | `(owner, phone)` — `owner` = Auth user id; cached `name`/`avatar_url`; reusable across groups. Populated only when a friend request is **accepted** (mutual rows) |
 | `friend_requests` | pending friendship requests | `from_owner` (sender Auth id) + `from_*` snapshot, `to_phone` (recipient), `status` ∈ `pending`/`accepted`/`declined`, unique `(from_owner, to_phone)`. Adding a friend inserts a `pending` row; the recipient (matched by their phone) accepts → mutual `friends` rows, or declines |
+| `profiles` | canonical per-user identity | `user_id` = Auth user id (PK); `phone` **unique** (one phone ⇒ one account). Written at registration; `authSignUp` rejects a phone already in use. Email uniqueness is enforced by Supabase Auth |
 
 Deletes cascade: removing an outing removes its expenses and settlements;
 removing a group removes everything.

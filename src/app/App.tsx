@@ -12,7 +12,7 @@ import { useBootstrap } from './useBootstrap';
 import { setSession, store, useSession, useStore } from './data/store';
 import { loadFriends } from './data/friends';
 import { loadRequests, useIncomingRequests } from './data/friendRequests';
-import { getLocalProfile } from './data/profile';
+import { clearLocalProfile, getLocalProfile } from './data/profile';
 import { notifications } from './data/derive';
 import { useNotifReadAt } from './data/uiPrefs';
 import { Home } from './screens/Home';
@@ -46,6 +46,7 @@ function ErrorScreen() {
   const logout = () => {
     void store.authSignOut();
     store.teardownGroup();
+    clearLocalProfile();
     setSession(null);
   };
   return (
@@ -155,6 +156,7 @@ function MainApp({ joinCode }: { joinCode?: string }) {
   const onLogout = useCallback(() => {
     void store.authSignOut();
     store.teardownGroup();
+    clearLocalProfile();
     setSession(null);
     setTab('home');
   }, []);

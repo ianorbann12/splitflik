@@ -132,6 +132,19 @@ create table public.friend_requests (
 create index friend_requests_to_idx on public.friend_requests (to_phone);
 create index friend_requests_from_idx on public.friend_requests (from_owner);
 
+-- Canonical per-user profile: enforces that a phone number identifies exactly
+-- one account (email uniqueness is already enforced by Supabase Auth). Written
+-- at registration; the unique constraint rejects a second account on the phone.
+create table public.profiles (
+  user_id uuid primary key,
+  name text,
+  phone text unique check (phone is null or phone ~ '^0[1-9][0-9]{7}$'),
+  avatar_url text,
+  created_at timestamptz not null default now()
+);
+alter table public.profiles enable row level security;
+create policy profiles_all on public.profiles for all using (true) with check (true);
+
 -- RLS: enabled, permissive (see access model note above).
 alter table public.groups enable row level security;
 alter table public.people enable row level security;
