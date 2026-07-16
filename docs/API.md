@@ -162,7 +162,7 @@ Copy `src/types.ts`, `src/engine/` and `src/lib/` into your project (React
   `teardownGroup()` / `refetch()`, `getState()`/`subscribe()` (feed
   `useSyncExternalStore`), and actions: `createGroup`, `fetchGroupByInvite`,
   `claimPerson`, `joinAsNewPerson`, `savePerson`, `deletePerson`,
-  `createOuting`, `deleteOuting`, `saveExpense`, `deleteExpense`,
+  `createOuting`, `updateOuting`, `deleteOuting`, `saveExpense`, `deleteExpense`,
   `settleOuting`, `markSettlementPaid`, `toast`. In-group actions are
   synchronous facades: they apply optimistically, persist in the background,
   and roll back + set `state.toast` on failure. Realtime changes and tab

@@ -545,6 +545,19 @@ export function createOuting(name: string, participantIds: string[]): string {
   return outing.id;
 }
 
+export function updateOuting(outing: Outing): void {
+  withRollback(
+    { outings: state.outings.map((o) => (o.id === outing.id ? outing : o)) },
+    () =>
+      throwing(
+        db()
+          .from('outings')
+          .update({ name: outing.name, participant_ids: outing.participantIds })
+          .eq('id', outing.id),
+      ),
+  );
+}
+
 export function deleteOuting(outingId: string): void {
   withRollback(
     {
