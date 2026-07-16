@@ -477,13 +477,43 @@ export async function claimPerson(personId: string, userId: string): Promise<voi
   await throwing(db().from('people').update({ claimed_by: userId }).eq('id', personId));
 }
 
-/** Claim a pending person and set the display name to the joiner's own name. */
+/** Claim a pending person and set the display name (+ optional avatar) to the joiner's. */
 export async function claimPersonWithName(
   personId: string,
   userId: string,
   name: string,
+  avatarUrl?: string,
 ): Promise<void> {
-  await throwing(db().from('people').update({ claimed_by: userId, name }).eq('id', personId));
+  await throwing(
+    db()
+      .from('people')
+      .update({ claimed_by: userId, name, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) })
+      .eq('id', personId),
+  );
+}
+
+/**
+ * Finds a group where a still-unclaimed person was added with this phone number
+ * (i.e. someone invited you by phone). Used to join by phone number.
+ */
+export async function fetchPendingByPhone(
+  phone: string,
+): Promise<{ group: Group; person: Person } | null> {
+  const pe = await db()
+    .from('people')
+    .select('*')
+    .eq('phone', phone)
+    .is('claimed_by', null)
+    .limit(1);
+  if (pe.error) throw pe.error;
+  const rows = (pe.data ?? []) as PersonRow[];
+  const first = rows[0];
+  if (!first) return null;
+  const person = personFromRow(first);
+  const g = await db().from('groups').select('*').eq('id', person.groupId).maybeSingle();
+  if (g.error) throw g.error;
+  if (!g.data) return null;
+  return { group: groupFromRow(g.data as GroupRow), person };
 }
 
 export async function joinAsNewPerson(
@@ -491,6 +521,7 @@ export async function joinAsNewPerson(
   name: string,
   phone: string | undefined,
   userId: string,
+  avatarUrl?: string,
 ): Promise<string> {
   const personId = crypto.randomUUID();
   await throwing(
@@ -500,6 +531,7 @@ export async function joinAsNewPerson(
       name,
       phone: phone ?? null,
       claimed_by: userId,
+      avatar_url: avatarUrl ?? null,
     }),
   );
   return personId;

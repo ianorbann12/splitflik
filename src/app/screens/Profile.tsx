@@ -5,6 +5,7 @@ import type { Person } from '../../types';
 import { useSession, useStore } from '../data/store';
 import { store } from '../data/store';
 import { fileToAvatarDataUrl } from '../data/image';
+import { setLocalProfile } from '../data/profile';
 import { formatPhone, normalizePhone } from '../format';
 import { initials } from '../data/people';
 import { useTheme, type Theme } from '../theme';
@@ -173,6 +174,11 @@ function ProfileEditSheet({ me, onClose }: { me: Person; onClose: () => void }) 
       },
       false,
     );
+    setLocalProfile({
+      name: name.trim(),
+      phone: normalized ?? me.phone ?? '',
+      ...(avatarUrl ? { avatarUrl } : {}),
+    });
     store.toast('Profil posodobljen');
     onClose();
   };

@@ -9,7 +9,8 @@ import { avatarSrcProp, avatarUrlOf, firstName, initials } from '../../data/peop
 import { formatEur } from '../../format';
 import { useFlik } from '../../ui/FlikSheet';
 import { Avatar, BottomSheet, Button, Card, EmptyState, FieldLabel, Segmented, Sheet, TextField } from '../../ui/kit';
-import { IconCheck, IconCopy, IconPlus, IconReceipt, IconShare } from '../../ui/icons';
+import { IconCheck, IconCopy, IconPlus, IconQr, IconReceipt, IconShare } from '../../ui/icons';
+import { QrSheet } from '../../ui/QrSheet';
 import { StepAssign } from './StepAssign';
 
 type Step = 'new' | 'activity' | 'assign' | 'review' | 'sent';
@@ -161,6 +162,7 @@ function StepNew({
 }) {
   const [name, setName] = useState('');
   const [selected, setSelected] = useState<string[]>(people.map((p) => p.id));
+  const [showQr, setShowQr] = useState(false);
   const url = inviteUrl(group.inviteCode);
 
   const toggle = (id: string) =>
@@ -255,9 +257,9 @@ function StepNew({
       </Card>
 
       <Button variant="primary" full onClick={shareLink} style={{ marginBottom: 10 }}>
-        <IconShare size={17} color="var(--on-accent)" strokeWidth={2} /> SplitFlik povezavo
+        <IconShare size={17} color="var(--on-accent)" strokeWidth={2} /> Deli povezavo
       </Button>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
         <Button variant="secondary" full onClick={() => openExternal(`https://wa.me/?text=${encodeURIComponent(url)}`)} style={{ borderRadius: 12, padding: 12, font: '500 13px/1 Rubik' }}>
           WhatsApp
         </Button>
@@ -265,6 +267,9 @@ function StepNew({
           SMS
         </Button>
       </div>
+      <Button variant="secondary" full onClick={() => setShowQr(true)} style={{ marginBottom: 24 }}>
+        <IconQr size={17} color="var(--link)" strokeWidth={2} /> Pokaži QR kodo
+      </Button>
 
       <Button
         variant="primary"
@@ -277,6 +282,8 @@ function StepNew({
       >
         Ustvari aktivnost
       </Button>
+
+      {showQr ? <QrSheet url={url} onClose={() => setShowQr(false)} /> : null}
     </div>
   );
 }

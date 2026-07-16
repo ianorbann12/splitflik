@@ -30,12 +30,14 @@ export interface StoreApi {
     inviteCode: string,
   ): Promise<{ group: Group; people: Person[] } | null>;
   claimPerson(personId: string, userId: string): Promise<void>;
-  claimPersonWithName(personId: string, userId: string, name: string): Promise<void>;
+  claimPersonWithName(personId: string, userId: string, name: string, avatarUrl?: string): Promise<void>;
+  fetchPendingByPhone(phone: string): Promise<{ group: Group; person: Person } | null>;
   joinAsNewPerson(
     groupId: string,
     name: string,
     phone: string | undefined,
     userId: string,
+    avatarUrl?: string,
   ): Promise<string>;
   savePerson(person: Person, isNew: boolean): void;
   deletePerson(personId: string): void;

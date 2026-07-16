@@ -150,10 +150,21 @@ export async function claimPersonWithName(
   personId: string,
   userId: string,
   name: string,
+  avatarUrl?: string,
 ): Promise<void> {
   setState({
-    people: state.people.map((p) => (p.id === personId ? { ...p, claimedBy: userId, name } : p)),
+    people: state.people.map((p) =>
+      p.id === personId ? { ...p, claimedBy: userId, name, ...(avatarUrl ? { avatarUrl } : {}) } : p,
+    ),
   });
+}
+
+export async function fetchPendingByPhone(
+  phone: string,
+): Promise<{ group: Group; person: Person } | null> {
+  const person = state.people.find((p) => p.phone === phone && !p.claimedBy);
+  if (!person || !state.group) return null;
+  return { group: state.group, person };
 }
 
 export async function joinAsNewPerson(
@@ -161,6 +172,7 @@ export async function joinAsNewPerson(
   name: string,
   phone: string | undefined,
   userId: string,
+  avatarUrl?: string,
 ): Promise<string> {
   const personId = crypto.randomUUID();
   const person: Person = {
@@ -169,6 +181,7 @@ export async function joinAsNewPerson(
     name,
     ...(phone ? { phone } : {}),
     claimedBy: userId,
+    ...(avatarUrl ? { avatarUrl } : {}),
   };
   setState({ people: [...state.people, person] });
   return personId;

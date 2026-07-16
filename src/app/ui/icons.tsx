@@ -178,6 +178,15 @@ export const IconLogout = (p: IconProps) => (
   </Svg>
 );
 
+export const IconQr = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <path d="M14 14h3v3M21 14v3M14 21h3M20 20h1" />
+  </Svg>
+);
+
 export const IconLink = (p: IconProps) => (
   <Svg {...p}>
     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
