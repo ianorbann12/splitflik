@@ -41,11 +41,11 @@ export function buildDemoData(): DemoData {
 
   const people: Person[] = [
     { id: 'nina', groupId: group.id, name: 'Johan Romih', phone: '041234567', claimedBy: DEMO_AUTH_USER },
-    { id: 'joze', groupId: group.id, name: 'Jože Novak', phone: '031111222' },
-    { id: 'maja', groupId: group.id, name: 'Maja Horvat', phone: '040555666' },
-    { id: 'luka', groupId: group.id, name: 'Luka Zupan', phone: '051777888' },
-    { id: 'ana', groupId: group.id, name: 'Ana Krajnc', phone: '030999000' },
-    { id: 'tine', groupId: group.id, name: 'Tine Mlakar', phone: '064321987' },
+    { id: 'joze', groupId: group.id, name: 'Jože Novak', phone: '031111222', claimedBy: 'u-joze' },
+    { id: 'maja', groupId: group.id, name: 'Maja Horvat', phone: '040555666', claimedBy: 'u-maja' },
+    { id: 'luka', groupId: group.id, name: 'Luka Zupan', phone: '051777888', claimedBy: 'u-luka' },
+    { id: 'ana', groupId: group.id, name: 'Ana Krajnc', phone: '030999000', claimedBy: 'u-ana' },
+    { id: 'tine', groupId: group.id, name: 'Tine Mlakar', phone: '064321987', claimedBy: 'u-tine' },
   ];
 
   const outings: Outing[] = [
