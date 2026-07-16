@@ -1,0 +1,230 @@
+/* ============================================================================
+   Deli — design tokens & base styles.
+   Token values lifted verbatim from the Deli.dc.html prototype's themePage():
+   two themes, Light and Glossy dark (the two the Profile toggle exposes).
+   ========================================================================== */
+
+:root[data-theme='light'] {
+  --page: #e7e7e0;
+  --bg: #f1f1ec;
+  --surface: #ffffff;
+  --surface2: #f4f4ee;
+  --surface3: #ebebe3;
+  --field: #f4f4ee;
+  --text: #14150f;
+  --text-sec: #83857b;
+  --border: #e6e6dd;
+  --border-soft: #eeeee7;
+  --accent: #cbf049;
+  --on-accent: #141610;
+  --link: #5c7e10;
+  --accent-soft: #edf6c7;
+  --pos: #1f8a5b;
+  --neg: #e0413f;
+  --pend: #c67a00;
+  --toast-bg: #14150f;
+  --toast-fg: #f1f1ec;
+  --dash: #c7d0dc;
+  --scrim: rgba(20, 21, 15, 0.42);
+  --pay: #2e9e63;
+  --on-accent-soft: rgba(20, 22, 16, 0.7);
+}
+
+:root[data-theme='glossy'] {
+  --page: #070a0f;
+  --bg: #0c1017;
+  --surface: linear-gradient(165deg, #242b39 0%, #161c27 100%);
+  --surface2: linear-gradient(165deg, #1f2732 0%, #131922 100%);
+  --surface3: linear-gradient(165deg, #2c3543 0%, #1b222e 100%);
+  --field: #141922;
+  --text: #f5f7fa;
+  --text-sec: #98a0ae;
+  --border: #333c4a;
+  --border-soft: #262e3a;
+  --accent: #cbf049;
+  --on-accent: #0e1206;
+  --link: #cbf049;
+  --accent-soft: #232c16;
+  --pos: #6fd08a;
+  --neg: #f47e7b;
+  --pend: #f0b44a;
+  --toast-bg: #f5f7fa;
+  --toast-fg: #141610;
+  --dash: #3a4453;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --pay: #2e9e63;
+  --on-accent-soft: rgba(20, 22, 16, 0.7);
+}
+
+/* ------------------------------- reset ---------------------------------- */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--page);
+  color: var(--text);
+  font-family: Rubik, 'SF Pro Text', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 0.25s ease;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  color: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* hide scrollbars on scroll regions (matches prototype .deli-scroll) */
+.deli-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.deli-scroll {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* placeholder color in both themes */
+::placeholder {
+  color: var(--text-sec);
+  opacity: 0.75;
+}
+
+/* ------------------------------ layout ---------------------------------- */
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+}
+
+/* The app renders as a phone: full-bleed on mobile, a centered device card on
+   wider screens. */
+.app-frame {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (min-width: 480px) {
+  #root {
+    align-items: center;
+    padding: 24px 0;
+  }
+  .app-frame {
+    min-height: 0;
+    height: min(920px, calc(100dvh - 48px));
+    border-radius: 46px;
+    border: 1px solid var(--border-soft);
+    box-shadow:
+      0 40px 90px rgba(0, 0, 0, 0.45),
+      0 0 0 10px rgba(0, 0, 0, 0.12);
+  }
+}
+
+/* safe-area helpers */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------------------------- animations -------------------------------- */
+
+@keyframes deli-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes deli-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes deli-toast {
+  from {
+    transform: translate(-50%, 14px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+@keyframes deli-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes deli-slideup {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes deli-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.deli-spin {
+  animation: deli-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

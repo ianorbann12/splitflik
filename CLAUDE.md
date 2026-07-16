@@ -1,11 +1,18 @@
-# CLAUDE.md — SplitFlik backend kit
+# CLAUDE.md — SplitFlik + Deli
 
-This branch (`main`) is the **backend + SDK kit**: Supabase schema, the
-receipt-parsing serverless function, the money engine, and the typed client
-SDK — no UI. The full reference frontend lives in the separate (private)
-`splitflik-frontend` repository (with its
-own CLAUDE.md and PLAN.md). Contracts for frontend builders: `docs/API.md`.
+This repo has two halves:
+
+1. The **backend + SDK kit**: Supabase schema, the receipt-parsing serverless
+   function, the money engine, and the typed client SDK. Contracts: `docs/API.md`.
+2. **Deli** — the reference frontend (Vite + React + TS SPA) under `src/app/`,
+   built from the `Deli.dc.html` design. It renders the whole product on top of
+   the SDK and never touches Supabase directly (all data goes through
+   `src/app/data/store.ts`, which delegates to `src/lib/storage.ts` or an
+   in-memory demo store when Supabase isn't configured). See `README.md`.
+
 If this file and PLAN.md conflict, PLAN.md wins; flag the conflict.
+The backend hard rules below apply to the frontend too (integer cents, settle
+only via the RPC, Flik is a handoff with the disclaimer always visible).
 
 ## Commands
 
