@@ -8,8 +8,8 @@ import { getLocalProfile, setLocalProfile } from '../data/profile';
 import { loadFriends, useFriends } from '../data/friends';
 import { avatarSrcProp } from '../data/people';
 import { newInviteCode, setSession, store, useStore } from '../data/store';
-import { Avatar, BottomSheet, Button, FieldLabel, Segmented, Select, TextField } from '../ui/kit';
-import { IconCheck, IconPlus, IconUsers } from '../ui/icons';
+import { Avatar, BottomSheet, Button, ConfirmDialog, FieldLabel, Segmented, Select, TextField } from '../ui/kit';
+import { IconCheck, IconLogout, IconPlus, IconUsers } from '../ui/icons';
 
 type View = 'list' | 'create' | 'join';
 type JoinMethod = 'code' | 'phone';
@@ -40,6 +40,7 @@ export function GroupSwitcher({
 
   const [view, setView] = useState<View>(initialJoinCode ? 'join' : initialView);
   const [groups, setGroups] = useState<{ group: Group; personId: string }[]>([]);
+  const [leaving, setLeaving] = useState<{ group: Group; personId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +73,25 @@ export function GroupSwitcher({
   const switchTo = (g: { group: Group; personId: string }) => {
     setSession({ groupId: g.group.id, personId: g.personId, inviteCode: g.group.inviteCode });
     onClose();
+  };
+
+  const doLeave = async (g: { group: Group; personId: string }) => {
+    setLeaving(null);
+    try {
+      await store.leaveGroup(g.group.id, userId);
+    } catch {
+      store.toast('Skupine ni bilo mogoče zapustiti.');
+      return;
+    }
+    store.toast(`Zapustil skupino «${g.group.name}»`);
+    if (g.group.id === activeId) {
+      // Left the active group → drop back to the no-group home.
+      store.teardownGroup();
+      setSession(null);
+      onClose();
+    } else {
+      setGroups((cur) => cur.filter((x) => x.group.id !== g.group.id));
+    }
   };
 
   const create = async () => {
@@ -192,19 +212,27 @@ export function GroupSwitcher({
             </div>
           ) : (
             groups.map((g) => (
-              <button
-                key={g.group.id}
-                onClick={() => switchTo(g)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: `1px solid ${g.group.id === activeId ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 16, padding: '13px 15px', cursor: 'pointer', textAlign: 'left', width: '100%' }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: '600 15px/1.2 Rubik', color: 'var(--text)' }}>{g.group.name}</div>
-                  {g.group.id === activeId ? (
-                    <div style={{ font: '400 12px/1.3 Rubik', color: 'var(--link)' }}>Trenutna skupina</div>
-                  ) : null}
-                </div>
-                {g.group.id === activeId ? <IconCheck size={18} color="var(--link)" strokeWidth={2.4} /> : null}
-              </button>
+              <div key={g.group.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  onClick={() => switchTo(g)}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: `1px solid ${g.group.id === activeId ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 16, padding: '13px 15px', cursor: 'pointer', textAlign: 'left', minWidth: 0 }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ font: '600 15px/1.2 Rubik', color: 'var(--text)' }}>{g.group.name}</div>
+                    {g.group.id === activeId ? (
+                      <div style={{ font: '400 12px/1.3 Rubik', color: 'var(--link)' }}>Trenutna skupina</div>
+                    ) : null}
+                  </div>
+                  {g.group.id === activeId ? <IconCheck size={18} color="var(--link)" strokeWidth={2.4} /> : null}
+                </button>
+                <button
+                  onClick={() => setLeaving(g)}
+                  aria-label={`Zapusti skupino ${g.group.name}`}
+                  style={{ width: 46, height: 46, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  <IconLogout size={17} color="var(--neg)" strokeWidth={2} />
+                </button>
+              </div>
             ))
           )}
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
@@ -363,6 +391,17 @@ export function GroupSwitcher({
             </>
           )}
         </div>
+      ) : null}
+
+      {leaving ? (
+        <ConfirmDialog
+          title="Zapusti skupino?"
+          message={`Zapustil boš skupino «${leaving.group.name}». Tvoji pretekli stroški in poravnave se ohranijo.`}
+          confirmLabel="Zapusti"
+          danger
+          onConfirm={() => void doLeave(leaving)}
+          onCancel={() => setLeaving(null)}
+        />
       ) : null}
     </BottomSheet>
   );

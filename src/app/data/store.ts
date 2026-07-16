@@ -43,6 +43,7 @@ export interface StoreApi {
     groupId: string,
     members: { name?: string; phone: string; avatarUrl?: string }[],
   ): Promise<void>;
+  leaveGroup(groupId: string, userId: string): Promise<void>;
   joinAsNewPerson(
     groupId: string,
     name: string,

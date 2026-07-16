@@ -12,10 +12,12 @@ import { setActiveCurrency } from '../../lib/format';
 // single active-group snapshot in `state`.
 let demoGroups: Group[] = [];
 let demoFriends: Friend[] = [];
+let demoInited = false;
 const createdGroupPeople: Record<string, Person[]> = {};
 
 function ensureDemoInit(): void {
-  if (demoGroups.length) return;
+  if (demoInited) return; // seed once — leaving every group must not re-seed
+  demoInited = true;
   const d = buildDemoData();
   demoGroups = [d.group];
   demoFriends = d.people
@@ -204,6 +206,11 @@ export async function addFriend(userId: string, phone: string): Promise<Friend> 
 
 export async function removeFriend(_userId: string, phone: string): Promise<void> {
   demoFriends = demoFriends.filter((f) => f.phone !== phone);
+}
+
+export async function leaveGroup(groupId: string, _userId: string): Promise<void> {
+  demoGroups = demoGroups.filter((g) => g.id !== groupId);
+  delete createdGroupPeople[groupId];
 }
 
 export async function addGroupMembers(

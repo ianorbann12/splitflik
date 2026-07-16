@@ -641,6 +641,18 @@ export async function updateFriendName(userId: string, phone: string, name: stri
   await throwing(db().from('friends').update({ name }).eq('owner', userId).eq('phone', phone));
 }
 
+/**
+ * Leaves a group by un-claiming the user's roster entry (claimed_by → null).
+ * History is preserved: the person row and its expenses/settlements stay, so
+ * balances remain correct and the entry can be re-claimed later.
+ */
+export async function leaveGroup(groupId: string, userId: string): Promise<void> {
+  if (!groupId || !userId) throw new Error('leaveGroup requires groupId and userId');
+  await throwing(
+    db().from('people').update({ claimed_by: null }).eq('group_id', groupId).eq('claimed_by', userId),
+  );
+}
+
 /** Adds friends as pending members of a group; they claim their entry on join. */
 export async function addGroupMembers(
   groupId: string,
