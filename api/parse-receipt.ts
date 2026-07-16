@@ -3,7 +3,9 @@
 // image is parsed and discarded — never persisted, never logged.
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sanitizeResult, validateRequest } from './_validate';
+// Explicit .js extension: the deployed function runs as native ESM
+// ("type":"module"), which requires extensions on relative imports.
+import { sanitizeResult, validateRequest } from './_validate.js';
 
 // Vision model id. Defaults to Claude; override with RECEIPT_MODEL to route
 // through a proxy (e.g. LiteLLM + ANTHROPIC_BASE_URL) to another provider.
