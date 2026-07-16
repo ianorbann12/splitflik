@@ -6,8 +6,9 @@
 import { useState } from 'react';
 import type { Person } from '../../types';
 import { friendBalances } from '../data/derive';
+import { avatarSrcProp } from '../data/people';
 import { inviteUrl, store, useSession, useStore } from '../data/store';
-import { normalizePhone, signedEur } from '../format';
+import { formatPhone, normalizePhone, signedEur } from '../format';
 import { useFlik } from '../ui/FlikSheet';
 import { PAGE_PADDING } from '../ui/AppShell';
 import { Avatar, BottomSheet, Button, Card, FieldLabel, Segmented, TextField } from '../ui/kit';
@@ -92,7 +93,7 @@ export function Friends() {
                 onClick={() => setEdit({ mode: 'edit', person: f.person })}
                 style={{ display: 'flex', alignItems: 'center', gap: 13, flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
               >
-                <Avatar name={f.person.name} id={f.person.id} size={44} />
+                <Avatar name={f.person.name} id={f.person.id} size={44} {...avatarSrcProp(f.person.avatarUrl)} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '600 16px/1.2 Rubik', color: 'var(--text)' }}>{f.person.name}</div>
                   <div style={{ font: '400 13px/1.3 Rubik', color: pending ? 'var(--pend)' : 'var(--text-sec)' }}>{hint}</div>
@@ -153,6 +154,7 @@ export function Friends() {
           edit={edit}
           groupId={state.group?.id ?? ''}
           inviteCode={inviteCode}
+          existingPhones={state.people.map((p) => p.phone).filter((x): x is string => Boolean(x))}
           onClose={() => setEdit(null)}
         />
       ) : null}
@@ -164,11 +166,13 @@ function FriendSheet({
   edit,
   groupId,
   inviteCode,
+  existingPhones,
   onClose,
 }: {
   edit: { mode: 'add' } | { mode: 'edit'; person: Person };
   groupId: string;
   inviteCode: string;
+  existingPhones: string[];
   onClose: () => void;
 }) {
   const existing = edit.mode === 'edit' ? edit.person : null;
@@ -176,13 +180,14 @@ function FriendSheet({
   const [phone, setPhone] = useState(existing?.phone ?? '');
 
   const addByPhone = () => {
-    if (!name.trim()) return store.toast('Vnesi ime prijatelja.');
     const normalized = normalizePhone(phone);
     if (!normalized) return store.toast('Vnesi veljavno telefonsko številko.');
-    // Pending friend: no claimedBy until they confirm by claiming their entry.
-    store.savePerson({ id: crypto.randomUUID(), groupId, name: name.trim(), phone: normalized }, true);
-    sendRequest(normalized, name.trim(), inviteCode);
-    store.toast(`Zahtevek poslan · ${name.trim()} mora potrditi`);
+    if (existingPhones.includes(normalized)) return store.toast('Prijatelj s to številko že obstaja.');
+    // Pending friend: no name yet (it comes from their own registration) and no
+    // claimedBy until they confirm. Show the phone as a placeholder until then.
+    store.savePerson({ id: crypto.randomUUID(), groupId, name: formatPhone(normalized), phone: normalized }, true);
+    sendRequest(normalized, '', inviteCode);
+    store.toast('Zahtevek poslan · prijatelj mora potrditi');
     onClose();
   };
 
@@ -220,13 +225,21 @@ function FriendSheet({
     return (
       <BottomSheet title="Dodaj prijatelja" onClose={onClose}>
         <div style={{ font: '400 13px/1.5 Rubik', color: 'var(--text-sec)', marginBottom: 16 }}>
-          Prijatelja dodaš z njegovo telefonsko številko. Poslali mu bomo zahtevek — v prijatelje se doda,
-          ko ga potrdi.
+          Prijatelja dodaš samo z njegovo telefonsko številko. Poslali mu bomo zahtevek — v prijatelje
+          se doda, ko ga potrdi, njegovo ime pa se prevzame iz njegove registracije.
         </div>
-        <FieldLabel>Ime prijatelja</FieldLabel>
-        <TextField placeholder="npr. Ana Krajnc" value={name} onChange={(e) => setName(e.target.value)} style={{ marginBottom: 14 }} />
         <FieldLabel>Telefonska številka</FieldLabel>
-        <TextField placeholder="031 123 456" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ marginBottom: 18 }} />
+        <TextField
+          placeholder="031 123 456"
+          inputMode="tel"
+          autoFocus
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') addByPhone();
+          }}
+          style={{ marginBottom: 18 }}
+        />
         <Button variant="primary" full onClick={addByPhone}>
           Pošlji zahtevek
         </Button>

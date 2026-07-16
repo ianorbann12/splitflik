@@ -73,6 +73,7 @@ interface PersonRow {
   name: string;
   phone: string | null;
   claimed_by: string | null;
+  avatar_url: string | null;
   created_at: string;
 }
 interface OutingRow {
@@ -117,6 +118,7 @@ export function personFromRow(r: PersonRow): Person {
     name: r.name,
     ...(r.phone ? { phone: r.phone } : {}),
     ...(r.claimed_by ? { claimedBy: r.claimed_by } : {}),
+    ...(r.avatar_url ? { avatarUrl: r.avatar_url } : {}),
   };
 }
 export function outingFromRow(r: OutingRow): Outing {
@@ -164,6 +166,7 @@ function personToRow(p: Person): Omit<PersonRow, 'created_at'> {
     name: p.name,
     phone: p.phone ?? null,
     claimed_by: p.claimedBy ?? null,
+    avatar_url: p.avatarUrl ?? null,
   };
 }
 function expenseToRow(e: Expense): Omit<ExpenseRow, 'created_at'> {
@@ -472,6 +475,15 @@ export async function fetchGroupByInvite(
 
 export async function claimPerson(personId: string, userId: string): Promise<void> {
   await throwing(db().from('people').update({ claimed_by: userId }).eq('id', personId));
+}
+
+/** Claim a pending person and set the display name to the joiner's own name. */
+export async function claimPersonWithName(
+  personId: string,
+  userId: string,
+  name: string,
+): Promise<void> {
+  await throwing(db().from('people').update({ claimed_by: userId, name }).eq('id', personId));
 }
 
 export async function joinAsNewPerson(

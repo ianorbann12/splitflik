@@ -2,7 +2,7 @@
 // opens the new-activity flow.
 import { useSession, useStore } from '../data/store';
 import { friendBalances, recentActivity, summarize } from '../data/derive';
-import { firstName } from '../data/people';
+import { avatarSrcProp, avatarUrlOf, firstName } from '../data/people';
 import { formatEur, relativeDay } from '../format';
 import { PAGE_PADDING } from '../ui/AppShell';
 import { Avatar, Card, EmptyState } from '../ui/kit';
@@ -91,7 +91,7 @@ export function Home({
               onClick={() => onOpenActivity(a.outingId)}
               style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px' }}
             >
-              <Avatar name={a.payerName} id={a.payerId} size={42} />
+              <Avatar name={a.payerName} id={a.payerId} size={42} {...avatarSrcProp(avatarUrlOf(state.people, a.payerId))} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{

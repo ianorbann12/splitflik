@@ -33,12 +33,20 @@ export function AuthGate() {
       } else {
         await store.authSignIn(email.trim(), password);
       }
-    } catch {
-      setError(
-        mode === 'signin'
-          ? 'Prijava ni uspela. Preveri e-pošto in geslo.'
-          : 'Registracija ni uspela. Poskusi z drugo e-pošto.',
-      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (/already registered|already exists|user_already_exists/i.test(msg)) {
+        setError('Ta e-pošta je že registrirana — prijavi se.');
+        setMode('signin');
+      } else if (/at least 6|password.*(short|6)/i.test(msg)) {
+        setError('Geslo mora imeti vsaj 6 znakov.');
+      } else if (/invalid login credentials|invalid_credentials/i.test(msg)) {
+        setError('Napačna e-pošta ali geslo.');
+      } else if (/valid email|email.*invalid|invalid.*email/i.test(msg)) {
+        setError('E-pošta ni v veljavni obliki.');
+      } else {
+        setError(msg || (mode === 'signin' ? 'Prijava ni uspela.' : 'Registracija ni uspela.'));
+      }
     } finally {
       setBusy(false);
     }

@@ -64,6 +64,7 @@ describe('row mapping', () => {
       name: 'Ana',
       phone: null,
       claimed_by: null,
+      avatar_url: null,
       created_at: ts,
     });
     expect(bare).toEqual({ id: 'p1', groupId: 'g1', name: 'Ana' });
@@ -75,6 +76,7 @@ describe('row mapping', () => {
       name: 'Bor',
       phone: '031123456',
       claimed_by: 'dev-1',
+      avatar_url: null,
       created_at: ts,
     });
     expect(full.phone).toBe('031123456');

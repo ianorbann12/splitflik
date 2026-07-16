@@ -1,9 +1,10 @@
 // Profil — account details, appearance toggle (light / glossy dark), the group's
 // invite code, and logout.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Person } from '../../types';
 import { useSession, useStore } from '../data/store';
 import { store } from '../data/store';
+import { fileToAvatarDataUrl } from '../data/image';
 import { formatPhone, normalizePhone } from '../format';
 import { initials } from '../data/people';
 import { useTheme, type Theme } from '../theme';
@@ -43,7 +44,7 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ position: 'relative' }}>
-          <Avatar name={me?.name ?? ''} id={meId} size={92} text={initials(me?.name ?? '?')} />
+          <Avatar name={me?.name ?? ''} id={meId} size={92} text={initials(me?.name ?? '?')} {...(me?.avatarUrl ? { src: me.avatarUrl } : {})} />
           <button
             onClick={() => setEditing(true)}
             aria-label="Uredi profil"
@@ -138,6 +139,20 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
 function ProfileEditSheet({ me, onClose }: { me: Person; onClose: () => void }) {
   const [name, setName] = useState(me.name);
   const [phone, setPhone] = useState(me.phone ?? '');
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(me.avatarUrl);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pickImage = async (file: File) => {
+    setBusy(true);
+    try {
+      setAvatarUrl(await fileToAvatarDataUrl(file));
+    } catch {
+      store.toast('Slike ni bilo mogoče obdelati.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const save = () => {
     if (!name.trim()) return store.toast('Vnesi ime.');
@@ -154,6 +169,7 @@ function ProfileEditSheet({ me, onClose }: { me: Person; onClose: () => void }) 
         name: name.trim(),
         ...(normalized ? { phone: normalized } : {}),
         ...(me.claimedBy ? { claimedBy: me.claimedBy } : {}),
+        ...(avatarUrl ? { avatarUrl } : {}),
       },
       false,
     );
@@ -163,6 +179,30 @@ function ProfileEditSheet({ me, onClose }: { me: Person; onClose: () => void }) 
 
   return (
     <BottomSheet title="Uredi profil" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <Avatar name={name} id={me.id} size={80} {...(avatarUrl ? { src: avatarUrl } : {})} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void pickImage(f);
+            e.target.value = '';
+          }}
+        />
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => fileRef.current?.click()} disabled={busy} style={{ background: 'none', border: 'none', color: 'var(--link)', font: '600 14px/1 Rubik', cursor: 'pointer' }}>
+            {busy ? 'Obdelujem…' : avatarUrl ? 'Zamenjaj sliko' : 'Dodaj sliko'}
+          </button>
+          {avatarUrl ? (
+            <button onClick={() => setAvatarUrl(undefined)} style={{ background: 'none', border: 'none', color: 'var(--text-sec)', font: '600 14px/1 Rubik', cursor: 'pointer' }}>
+              Odstrani
+            </button>
+          ) : null}
+        </div>
+      </div>
       <FieldLabel>Ime in priimek</FieldLabel>
       <TextField value={name} onChange={(e) => setName(e.target.value)} style={{ marginBottom: 14 }} />
       <FieldLabel>Telefon</FieldLabel>

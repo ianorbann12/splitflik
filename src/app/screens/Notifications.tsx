@@ -4,7 +4,7 @@
 import { useSession, useStore } from '../data/store';
 import { notifications, type Notif } from '../data/derive';
 import { markNotificationsRead, useNotifReadAt } from '../data/uiPrefs';
-import { firstName } from '../data/people';
+import { avatarSrcProp, avatarUrlOf, firstName } from '../data/people';
 import { store } from '../data/store';
 import { formatEur } from '../format';
 import { useFlik } from '../ui/FlikSheet';
@@ -91,7 +91,7 @@ export function Notifications() {
                     padding: '12px 14px',
                   }}
                 >
-                  <Avatar name={n.otherName} id={n.otherId} size={40} />
+                  <Avatar name={n.otherName} id={n.otherId} size={40} {...avatarSrcProp(avatarUrlOf(state.people, n.otherId))} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ font: '400 14px/1.3 Rubik', color: 'var(--text)' }}>{label(n)}</div>
                     <div style={{ font: '600 14px/1.3 Rubik', color: amountColor(n), marginTop: 2 }}>

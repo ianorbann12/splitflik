@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import type { Expense, Group, Outing, Person } from '../../../types';
 import { inviteUrl, store, useSession, useStore } from '../../data/store';
 import { outingExpenses, outingGrandTotal, outingNet, settlementPreview } from '../../data/derive';
-import { firstName, initials } from '../../data/people';
+import { avatarSrcProp, avatarUrlOf, firstName, initials } from '../../data/people';
 import { formatEur } from '../../format';
 import { useFlik } from '../../ui/FlikSheet';
 import { Avatar, BottomSheet, Button, Card, EmptyState, FieldLabel, Segmented, Sheet, TextField } from '../../ui/kit';
@@ -232,7 +232,7 @@ function StepNew({
                 opacity: on ? 1 : 0.55,
               }}
             >
-              <Avatar name={p.name} id={p.id} size={26} />
+              <Avatar name={p.name} id={p.id} size={26} {...avatarSrcProp(p.avatarUrl)} />
               <span style={{ font: '500 13px/1 Rubik', color: 'var(--text)' }}>
                 {firstName(p.name)}
                 {p.id === meId ? ' (ti)' : ''}
@@ -369,7 +369,7 @@ function StepActivity({
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, marginBottom: 22 }} className="splitflik-scroll">
         {participants.map((p) => (
           <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0, width: 58 }}>
-            <Avatar name={p.name} id={p.id} size={48} />
+            <Avatar name={p.name} id={p.id} size={48} {...avatarSrcProp(p.avatarUrl)} />
             <span style={{ font: '400 12px/1 Rubik', color: 'var(--text)', maxWidth: 58, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {firstName(p.name)}
             </span>
@@ -459,7 +459,7 @@ function StepReview({
             const sub = n < 0 ? 'dolguje' : n > 0 ? 'dobi nazaj' : 'poravnano';
             return (
               <Card key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px' }}>
-                <Avatar name={p.name} id={p.id} size={42} />
+                <Avatar name={p.name} id={p.id} size={42} {...avatarSrcProp(p.avatarUrl)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: '600 15px/1.2 Rubik', color: 'var(--text)' }}>
                     {firstName(p.name)}
@@ -479,9 +479,9 @@ function StepReview({
           ) : (
             transfers.map((t, i) => (
               <Card key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 15px' }}>
-                <Avatar name={nameOf(t.fromId)} id={t.fromId} size={36} text={initials(nameOf(t.fromId))} />
+                <Avatar name={nameOf(t.fromId)} id={t.fromId} size={36} text={initials(nameOf(t.fromId))} {...avatarSrcProp(avatarUrlOf(state.people, t.fromId))} />
                 <span style={{ font: '400 13px/1.3 Rubik', color: 'var(--text-sec)' }}>→</span>
-                <Avatar name={nameOf(t.toId)} id={t.toId} size={36} text={initials(nameOf(t.toId))} />
+                <Avatar name={nameOf(t.toId)} id={t.toId} size={36} text={initials(nameOf(t.toId))} {...avatarSrcProp(avatarUrlOf(state.people, t.toId))} />
                 <div style={{ flex: 1, minWidth: 0, font: '500 14px/1.3 Rubik', color: 'var(--text)' }}>
                   {firstName(nameOf(t.fromId))} → {firstName(nameOf(t.toId))}
                 </div>
@@ -548,7 +548,7 @@ function StepSent({
             const iOwe = s.fromId === meId;
             return (
               <Card key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px' }}>
-                <Avatar name={nameOf(s.fromId)} id={s.fromId} size={42} />
+                <Avatar name={nameOf(s.fromId)} id={s.fromId} size={42} {...avatarSrcProp(avatarUrlOf(state.people, s.fromId))} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: '600 15px/1.2 Rubik', color: 'var(--text)' }}>
                     {firstName(nameOf(s.fromId))}

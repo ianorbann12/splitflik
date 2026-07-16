@@ -35,7 +35,7 @@ cents**; all client timestamps are epoch milliseconds (DB stores timestamptz).
 | Table | Purpose | Notes |
 |---|---|---|
 | `groups` | one friend circle | `invite_code` unique, 12–64 chars — the effective access secret |
-| `people` | members (roster entries) | `claimed_by` = Supabase Auth user id of whoever "is" this person; `phone` matches `^0[1-9][0-9]{7}$` (Slovenian mobile, normalized) |
+| `people` | members (roster entries) | `claimed_by` = Supabase Auth user id of whoever "is" this person; `phone` matches `^0[1-9][0-9]{7}$` (Slovenian mobile, normalized); `avatar_url` = optional profile picture (small data URL or hosted URL) |
 | `outings` | events expenses hang off | `participant_ids uuid[]`, `current_cycle` starts at 1 |
 | `expenses` | one bill | `split jsonb` (see §3.2), `cycle` = outing's `current_cycle` at creation, `amount_cents > 0` |
 | `settlements` | materialised debts | `status` ∈ `pending`/`paid`; created only via the `settle_outing` RPC |

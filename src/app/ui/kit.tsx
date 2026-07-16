@@ -20,6 +20,7 @@ export function Avatar({
   size = 42,
   color,
   text,
+  src,
   style,
 }: {
   name?: string;
@@ -27,6 +28,8 @@ export function Avatar({
   size?: number;
   color?: string;
   text?: string;
+  /** Profile picture URL (data URL or hosted). Falls back to initials. */
+  src?: string;
   style?: CSSProperties;
 }) {
   const bg = color ?? personColor(id ?? name);
@@ -36,17 +39,22 @@ export function Avatar({
         width: size,
         height: size,
         borderRadius: 9999,
-        background: bg,
+        background: src ? 'var(--surface3)' : bg,
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         font: `600 ${Math.round(size * 0.36)}px/1 Rubik`,
         flexShrink: 0,
+        overflow: 'hidden',
         ...style,
       }}
     >
-      {text ?? toInitials(name)}
+      {src ? (
+        <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        text ?? toInitials(name)
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ create table public.people (
   name text not null check (char_length(name) between 1 and 80),
   phone text check (phone is null or phone ~ '^0[1-9][0-9]{7}$'),
   claimed_by uuid,
+  avatar_url text,
   created_at timestamptz not null default now()
 );
 create index people_group_idx on public.people (group_id);

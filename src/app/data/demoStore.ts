@@ -146,6 +146,16 @@ export async function claimPerson(personId: string, userId: string): Promise<voi
   });
 }
 
+export async function claimPersonWithName(
+  personId: string,
+  userId: string,
+  name: string,
+): Promise<void> {
+  setState({
+    people: state.people.map((p) => (p.id === personId ? { ...p, claimedBy: userId, name } : p)),
+  });
+}
+
 export async function joinAsNewPerson(
   groupId: string,
   name: string,

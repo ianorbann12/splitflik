@@ -49,3 +49,12 @@ export function firstName(name: string): string {
 export function personName(people: Person[], id: string): string {
   return people.find((p) => p.id === id)?.name ?? 'Neznan';
 }
+
+export function avatarUrlOf(people: Person[], id: string): string | undefined {
+  return people.find((p) => p.id === id)?.avatarUrl;
+}
+
+/** Spreadable `src` prop for <Avatar> — omitted when there's no picture. */
+export function avatarSrcProp(url: string | undefined): { src?: string } {
+  return url ? { src: url } : {};
+}

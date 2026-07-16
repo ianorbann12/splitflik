@@ -30,6 +30,7 @@ export interface StoreApi {
     inviteCode: string,
   ): Promise<{ group: Group; people: Person[] } | null>;
   claimPerson(personId: string, userId: string): Promise<void>;
+  claimPersonWithName(personId: string, userId: string, name: string): Promise<void>;
   joinAsNewPerson(
     groupId: string,
     name: string,

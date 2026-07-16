@@ -16,6 +16,8 @@ export interface Person {
   phone?: string;
   /** Device id that claimed this person via the Join flow (PLAN.md §5). */
   claimedBy?: string;
+  /** Profile picture — a small data URL (or hosted URL). Optional. */
+  avatarUrl?: string;
 }
 
 export interface Outing {

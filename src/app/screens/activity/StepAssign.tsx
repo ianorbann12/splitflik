@@ -6,7 +6,7 @@ import type { Expense, Person, SplitSpec } from '../../../types';
 import { computeShares, equalSplit } from '../../../engine/shares';
 import { store } from '../../data/store';
 import { parseReceipt } from '../../data/receipt';
-import { firstName } from '../../data/people';
+import { avatarSrcProp, avatarUrlOf, firstName } from '../../data/people';
 import { formatEur, formatEurPlain, parseEur } from '../../format';
 import { Avatar, Button, FieldLabel, Segmented, Spinner, TextField } from '../../ui/kit';
 import { IconCamera, IconPlus, IconTrash } from '../../ui/icons';
@@ -222,7 +222,7 @@ export function StepAssign({
 
       <FieldLabel>Kdo je plačal račun</FieldLabel>
       <div style={{ position: 'relative', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Avatar name={nameOf(payerId)} id={payerId} size={40} />
+        <Avatar name={nameOf(payerId)} id={payerId} size={40} {...avatarSrcProp(avatarUrlOf(participants, payerId))} />
         <select
           value={payerId}
           onChange={(e) => setPayerId(e.target.value)}
@@ -332,7 +332,7 @@ function ParticipantChips({
             onClick={() => onToggle(p.id)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`, background: on ? 'var(--accent-soft)' : 'transparent', borderRadius: 9999, padding: '5px 10px 5px 5px', cursor: 'pointer', opacity: on ? 1 : 0.55 }}
           >
-            <Avatar name={p.name} id={p.id} size={24} />
+            <Avatar name={p.name} id={p.id} size={24} {...avatarSrcProp(p.avatarUrl)} />
             <span style={{ font: '500 12px/1 Rubik', color: 'var(--text)' }}>{firstName(p.name)}</span>
           </button>
         );
@@ -462,7 +462,7 @@ function ManualEditor({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
               {participants.filter((p) => equalIds.includes(p.id)).map((p) => (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Avatar name={p.name} id={p.id} size={30} />
+                  <Avatar name={p.name} id={p.id} size={30} {...avatarSrcProp(p.avatarUrl)} />
                   <span style={{ flex: 1, font: '500 14px/1 Rubik', color: 'var(--text)' }}>
                     {firstName(p.name)}
                     {p.id === meId ? ' (ti)' : ''}
@@ -479,7 +479,7 @@ function ManualEditor({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {participants.map((p) => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Avatar name={p.name} id={p.id} size={40} />
+                <Avatar name={p.name} id={p.id} size={40} {...avatarSrcProp(p.avatarUrl)} />
                 <span style={{ flex: 1, font: '500 15px/1 Rubik', color: 'var(--text)' }}>
                   {firstName(p.name)}
                   {p.id === meId ? ' (ti)' : ''}
