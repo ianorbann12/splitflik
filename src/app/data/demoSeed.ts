@@ -40,7 +40,7 @@ export function buildDemoData(): DemoData {
   };
 
   const people: Person[] = [
-    { id: 'nina', groupId: group.id, name: 'Nina Kovač', phone: '041234567', claimedBy: DEMO_AUTH_USER },
+    { id: 'nina', groupId: group.id, name: 'Johan Romih', phone: '041234567', claimedBy: DEMO_AUTH_USER },
     { id: 'joze', groupId: group.id, name: 'Jože Novak', phone: '031111222' },
     { id: 'maja', groupId: group.id, name: 'Maja Horvat', phone: '040555666' },
     { id: 'luka', groupId: group.id, name: 'Luka Zupan', phone: '051777888' },
