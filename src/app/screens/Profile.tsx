@@ -1,5 +1,6 @@
-// Profil — account details, appearance toggle (light / glossy dark), the group's
-// invite code, and logout.
+// Profil — personal data (edited via the "Osebni podatki" section), profile
+// photo (changed via the avatar only), appearance, subscription, and logout.
+// Group name + invite code live with the group, not on the individual profile.
 import { useRef, useState } from 'react';
 import type { Person } from '../../types';
 import { useSession, useStore } from '../data/store';
@@ -31,24 +32,31 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
   const { theme, setTheme } = useTheme();
   const [editing, setEditing] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
   const currentCurrency = group?.currency ?? 'EUR';
   const plan = usePlan();
 
-  const copyInvite = async () => {
-    if (!group) return;
+  // The avatar pencil changes ONLY the photo (personal data is edited from the
+  // "Osebni podatki" section). Name/phone are preserved.
+  const changePhoto = async (file: File) => {
+    setPhotoBusy(true);
     try {
-      await navigator.clipboard.writeText(group.inviteCode);
-      store.toast('Koda kopirana');
+      const url = await fileToAvatarDataUrl(file);
+      if (me) store.savePerson({ ...me, avatarUrl: url }, false);
+      setLocalProfile({ name: dispName || 'Uporabnik', phone: dispPhone, avatarUrl: url });
+      if (userId) void store.updateProfile(userId, { name: dispName, phone: dispPhone, avatarUrl: url });
+      store.toast('Profilna slika posodobljena');
     } catch {
-      store.toast('Kopiranje ni uspelo');
+      store.toast('Slike ni bilo mogoče obdelati.');
+    } finally {
+      setPhotoBusy(false);
     }
   };
 
-  const infoRows: { label: string; value: string; onClick?: () => void }[] = [
+  const infoRows: { label: string; value: string }[] = [
     { label: 'Ime in priimek', value: dispName || '—' },
     { label: 'Telefon', value: dispPhone ? formatPhone(dispPhone) : '—' },
-    { label: 'Skupina', value: group?.name ?? '—' },
-    { label: 'Vabilna koda', value: group?.inviteCode ?? '—', onClick: copyInvite },
   ];
 
   return (
@@ -58,9 +66,21 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ position: 'relative' }}>
           <Avatar name={dispName} id={meId || userId || 'me'} size={92} text={initials(dispName || '?')} {...(dispAvatar ? { src: dispAvatar } : {})} />
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void changePhoto(f);
+              e.target.value = '';
+            }}
+          />
           <button
-            onClick={() => setEditing(true)}
-            aria-label="Uredi profil"
+            onClick={() => photoRef.current?.click()}
+            disabled={photoBusy}
+            aria-label="Spremeni profilno sliko"
             style={{
               position: 'absolute',
               bottom: 0,
@@ -89,17 +109,24 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
         onChange={setTheme}
         options={[
           { value: 'light', label: 'Svetlo' },
-          { value: 'glossy', label: 'Glossy dark' },
+          { value: 'glossy', label: 'Temno' },
         ]}
         style={{ marginBottom: 22 }}
       />
 
-      <SectionLabel>Osebni podatki</SectionLabel>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <SectionLabel>Osebni podatki</SectionLabel>
+        <button
+          onClick={() => setEditing(true)}
+          style={{ background: 'none', border: 'none', color: 'var(--link)', font: '600 13px/1 Rubik', cursor: 'pointer', marginBottom: 10 }}
+        >
+          Uredi
+        </button>
+      </div>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden', marginBottom: 22 }}>
         {infoRows.map((r, i) => (
           <div
             key={r.label}
-            onClick={r.onClick}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -107,21 +134,10 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
               padding: '14px 16px',
               borderBottom: i < infoRows.length - 1 ? '1px solid var(--border-soft)' : 'none',
               gap: 12,
-              ...(r.onClick ? { cursor: 'pointer' } : {}),
             }}
           >
             <span style={{ font: '400 14px/1 Rubik', color: 'var(--text-sec)', flexShrink: 0 }}>{r.label}</span>
-            <span
-              style={{
-                font: '500 15px/1.3 Rubik',
-                color: r.onClick ? 'var(--link)' : 'var(--text)',
-                textAlign: 'right',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                ...(r.label === 'Vabilna koda' ? { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' } : {}),
-              }}
-            >
+            <span style={{ font: '500 15px/1.3 Rubik', color: 'var(--text)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {r.value}
             </span>
           </div>
@@ -223,21 +239,7 @@ function ProfileEditSheet({
 }) {
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone);
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initial.avatarUrl);
-  const [busy, setBusy] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const avatarId = me?.id ?? userId ?? 'me';
-
-  const pickImage = async (file: File) => {
-    setBusy(true);
-    try {
-      setAvatarUrl(await fileToAvatarDataUrl(file));
-    } catch {
-      store.toast('Slike ni bilo mogoče obdelati.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const avatar = initial.avatarUrl; // photo is changed separately (avatar pencil)
 
   const save = () => {
     if (!name.trim()) return store.toast('Vnesi ime.');
@@ -247,7 +249,7 @@ function ProfileEditSheet({
       if (!n) return store.toast('Telefonska številka ni veljavna.');
       normalized = n;
     }
-    // Update the group roster entry only when there is one.
+    // Update the group roster entry only when there is one; keep the photo as-is.
     if (me) {
       store.savePerson(
         {
@@ -256,7 +258,7 @@ function ProfileEditSheet({
           name: name.trim(),
           ...(normalized ? { phone: normalized } : {}),
           ...(me.claimedBy ? { claimedBy: me.claimedBy } : {}),
-          ...(avatarUrl ? { avatarUrl } : {}),
+          ...(avatar ? { avatarUrl: avatar } : {}),
         },
         false,
       );
@@ -264,14 +266,14 @@ function ProfileEditSheet({
     setLocalProfile({
       name: name.trim(),
       phone: normalized ?? initial.phone ?? '',
-      ...(avatarUrl ? { avatarUrl } : {}),
+      ...(avatar ? { avatarUrl: avatar } : {}),
     });
     // Keep the canonical server profile in sync (best-effort).
     if (userId) {
       void store.updateProfile(userId, {
         name: name.trim(),
         ...(normalized ? { phone: normalized } : {}),
-        ...(avatarUrl ? { avatarUrl } : {}),
+        ...(avatar ? { avatarUrl: avatar } : {}),
       });
     }
     store.toast('Profil posodobljen');
@@ -279,31 +281,7 @@ function ProfileEditSheet({
   };
 
   return (
-    <BottomSheet title="Uredi profil" onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <Avatar name={name} id={avatarId} size={80} {...(avatarUrl ? { src: avatarUrl } : {})} />
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void pickImage(f);
-            e.target.value = '';
-          }}
-        />
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => fileRef.current?.click()} disabled={busy} style={{ background: 'none', border: 'none', color: 'var(--link)', font: '600 14px/1 Rubik', cursor: 'pointer' }}>
-            {busy ? 'Obdelujem…' : avatarUrl ? 'Zamenjaj sliko' : 'Dodaj sliko'}
-          </button>
-          {avatarUrl ? (
-            <button onClick={() => setAvatarUrl(undefined)} style={{ background: 'none', border: 'none', color: 'var(--text-sec)', font: '600 14px/1 Rubik', cursor: 'pointer' }}>
-              Odstrani
-            </button>
-          ) : null}
-        </div>
-      </div>
+    <BottomSheet title="Uredi osebne podatke" onClose={onClose}>
       <FieldLabel>Ime in priimek</FieldLabel>
       <TextField value={name} onChange={(e) => setName(e.target.value)} style={{ marginBottom: 14 }} />
       <FieldLabel>Telefon</FieldLabel>

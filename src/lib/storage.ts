@@ -684,7 +684,41 @@ export async function lookupPersonByPhone(
 export async function listFriends(userId: string): Promise<Friend[]> {
   const f = await db().from('friends').select('*').eq('owner', userId);
   if (f.error) throw f.error;
-  return ((f.data ?? []) as FriendRow[]).map(friendFromRow);
+  const friends = ((f.data ?? []) as FriendRow[]).map(friendFromRow);
+  if (friends.length === 0) return friends;
+  // Enrich with each friend's CURRENT profile (name + photo) so their picture
+  // stays live across accounts, not frozen at the moment they were added.
+  try {
+    const pr = await db()
+      .from('profiles')
+      .select('phone,name,avatar_url')
+      .in(
+        'phone',
+        friends.map((fr) => fr.phone),
+      );
+    if (!pr.error) {
+      const byPhone = new Map<string, { name: string | null; avatar_url: string | null }>();
+      for (const row of (pr.data ?? []) as {
+        phone: string | null;
+        name: string | null;
+        avatar_url: string | null;
+      }[]) {
+        if (row.phone) byPhone.set(row.phone, { name: row.name, avatar_url: row.avatar_url });
+      }
+      return friends.map((fr) => {
+        const p = byPhone.get(fr.phone);
+        if (!p) return fr;
+        return {
+          ...fr,
+          ...(p.name ? { name: p.name } : {}),
+          ...(p.avatar_url ? { avatarUrl: p.avatar_url } : {}),
+        };
+      });
+    }
+  } catch {
+    // fall back to the cached friend rows
+  }
+  return friends;
 }
 
 /** Adds a friend by phone, caching their profile (name + avatar) if registered. */
