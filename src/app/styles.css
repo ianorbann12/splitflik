@@ -28,6 +28,7 @@
   --scrim: rgba(20, 21, 15, 0.42);
   --pay: #2e9e63;
   --on-accent-soft: rgba(20, 22, 16, 0.7);
+  color-scheme: light;
 }
 
 :root[data-theme='glossy'] {
@@ -54,6 +55,13 @@
   --scrim: rgba(0, 0, 0, 0.55);
   --pay: #2e9e63;
   --on-accent-soft: rgba(20, 22, 16, 0.7);
+  color-scheme: dark;
+}
+
+/* Native <select> dropdown popup + options follow the active theme. */
+select option {
+  background: var(--field);
+  color: var(--text);
 }
 
 /* ------------------------------- reset ---------------------------------- */
