@@ -7,12 +7,15 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 import { copyAmount, copyText, FLIK_DISCLAIMER, openPaymentApp, PAY_APPS } from '../../lib/flik';
 import { formatEur, formatPhone } from '../format';
 import { store } from '../data/store';
+import { avatarSrcProp } from '../data/people';
 import { Avatar, Button } from './kit';
 import { IconClose, IconCopy } from './icons';
 
 export interface FlikTarget {
   toName: string;
   toPhone?: string;
+  /** Recipient's profile picture, shown on the sheet. */
+  avatarUrl?: string;
   amountCents: number;
   /** Payment reason/purpose to copy into NLB Pay (defaults to a SplitFlik note). */
   reason?: string;
@@ -141,7 +144,7 @@ function FlikSheet({ target, onClose }: { target: FlikTarget; onClose: () => voi
             marginBottom: 12,
           }}
         >
-          <Avatar name={target.toName} size={46} />
+          <Avatar name={target.toName} id={target.toPhone ?? target.toName} size={46} {...avatarSrcProp(target.avatarUrl)} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ font: '400 12px/1.2 Rubik', color: 'var(--text-sec)', marginBottom: 3 }}>
               Prejemnik

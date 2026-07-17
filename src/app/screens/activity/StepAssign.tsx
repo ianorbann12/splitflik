@@ -6,6 +6,8 @@ import type { Expense, Person, SplitSpec } from '../../../types';
 import { computeShares, equalSplit } from '../../../engine/shares';
 import { store } from '../../data/store';
 import { parseReceipt } from '../../data/receipt';
+import { canParseReceipt, recordReceiptParse, useReceiptsLeft } from '../../data/plan';
+import { openSubscription } from '../../data/subscription';
 import { avatarSrcProp, avatarUrlOf, firstName } from '../../data/people';
 import { currencySymbol, formatEur, formatEurPlain, parseEur } from '../../format';
 import { Avatar, Button, ConfirmDialog, FieldLabel, Segmented, Spinner, TextField } from '../../ui/kit';
@@ -114,6 +116,7 @@ export function StepAssign({
   });
   const [scanning, setScanning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const receiptsLeft = useReceiptsLeft();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const itemCents = (it: DraftItem) => parseEur(it.amountInput) ?? 0;
@@ -132,9 +135,15 @@ export function StepAssign({
   const exactResolve = resolveExact(totalCents, allIds, exactInputs);
 
   const onScan = async (file: File) => {
+    if (!canParseReceipt()) {
+      store.toast('Dosegel si tedensko mejo razčlemb računov. Nadgradi na Plus.');
+      openSubscription();
+      return;
+    }
     setScanning(true);
     try {
       const parsed = await parseReceipt(file);
+      recordReceiptParse(); // one successful parse against the API used the quota
       const next: DraftItem[] = parsed.items.map((it, i) => ({
         key: `scan-${i}-${it.label}`,
         label: it.label,
@@ -288,6 +297,9 @@ export function StepAssign({
           {scanning ? 'Berem račun…' : 'Skeniraj račun'}
         </span>
       </button>
+      <div style={{ font: '400 12px/1.3 Rubik', color: 'var(--text-sec)', textAlign: 'center', marginTop: -10, marginBottom: 18 }}>
+        Preostane {receiptsLeft} razčlemb računa ta teden
+      </div>
 
       {mode === 'items' ? (
         <ItemsEditor

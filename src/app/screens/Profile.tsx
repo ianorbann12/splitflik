@@ -6,6 +6,8 @@ import { useSession, useStore } from '../data/store';
 import { store } from '../data/store';
 import { fileToAvatarDataUrl } from '../data/image';
 import { getLocalProfile, setLocalProfile } from '../data/profile';
+import { usePlan } from '../data/plan';
+import { openSubscription } from '../data/subscription';
 import { currencySymbol, formatPhone, normalizePhone, SUPPORTED_CURRENCIES } from '../format';
 import { initials } from '../data/people';
 import { useTheme, type Theme } from '../theme';
@@ -30,6 +32,7 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
   const [editing, setEditing] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const currentCurrency = group?.currency ?? 'EUR';
+  const plan = usePlan();
 
   const copyInvite = async () => {
     if (!group) return;
@@ -123,6 +126,26 @@ export function Profile({ onLogout }: { onLogout: () => void }) {
             </span>
           </div>
         ))}
+      </div>
+
+      <SectionLabel>Naročnina</SectionLabel>
+      <div
+        onClick={() => openSubscription()}
+        style={{ cursor: 'pointer', background: plan === 'paid' ? 'var(--accent-soft)' : 'var(--surface)', border: `1px solid ${plan === 'paid' ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, padding: '14px 16px', marginBottom: 22, display: 'flex', alignItems: 'center', gap: 12 }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ font: '700 15px/1.2 Rubik', color: 'var(--text)' }}>SplitFlik Plus</div>
+          <div style={{ font: '400 13px/1.35 Rubik', color: 'var(--text-sec)', marginTop: 3 }}>
+            {plan === 'paid'
+              ? 'Aktivno · brez oglasov, neomejeno oseb'
+              : '30 računov/teden, neomejeno oseb, brez oglasov'}
+          </div>
+        </div>
+        <span
+          style={{ font: '600 13px/1 Rubik', flexShrink: 0, color: plan === 'paid' ? 'var(--link)' : 'var(--on-accent)', background: plan === 'paid' ? 'transparent' : 'var(--accent)', borderRadius: 9999, padding: plan === 'paid' ? 0 : '9px 14px' }}
+        >
+          {plan === 'paid' ? 'Upravljaj' : 'Nadgradi'}
+        </span>
       </div>
 
       <SectionLabel>Nastavitve</SectionLabel>

@@ -13,6 +13,7 @@ import { formatEur, formatPhone } from '../format';
 import { useFlik } from '../ui/FlikSheet';
 import { PAGE_PADDING } from '../ui/AppShell';
 import { Avatar, Button, EmptyState } from '../ui/kit';
+import { AdBanner } from '../ui/Ads';
 import { IconBell } from '../ui/icons';
 
 export function Notifications() {
@@ -86,6 +87,8 @@ export function Notifications() {
           Označi vse
         </button>
       </div>
+
+      <AdBanner style={{ marginBottom: 18 }} />
 
       {incoming.length > 0 ? (
         <div style={{ marginBottom: 22 }}>
@@ -173,6 +176,9 @@ export function Notifications() {
                           amountCents: n.amountCents,
                           reason: outingNameOf(n.settlement.outingId) ?? 'Poravnava (SplitFlik)',
                           settlementId: n.settlement.id,
+                          ...(avatarUrlOf(state.people, n.otherId)
+                            ? { avatarUrl: avatarUrlOf(state.people, n.otherId) as string }
+                            : {}),
                         })
                       }
                     >

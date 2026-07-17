@@ -15,6 +15,7 @@ import { formatPhone, normalizePhone, signedEur } from '../format';
 import { useFlik } from '../ui/FlikSheet';
 import { PAGE_PADDING } from '../ui/AppShell';
 import { Avatar, BottomSheet, Button, Card, ConfirmDialog, FieldLabel, TextField } from '../ui/kit';
+import { AdBanner } from '../ui/Ads';
 import { IconClock, IconLink, IconSearch } from '../ui/icons';
 
 type Sender = { userId: string; name?: string; phone?: string; avatarUrl?: string };
@@ -78,6 +79,8 @@ export function Friends() {
         />
       </div>
 
+      <AdBanner style={{ marginBottom: 14 }} />
+
       {list.length === 0 ? (
         <div style={{ font: '400 14px/1.5 Rubik', color: 'var(--text-sec)', padding: '24px 4px' }}>
           {friends.length === 0 ? 'Nimaš še prijateljev. Dodaj jih s telefonsko številko.' : 'Ni zadetkov.'}
@@ -107,7 +110,7 @@ export function Friends() {
                     {owes ? (
                       <Button
                         variant="pay"
-                        onClick={() => flik.open({ toName: f.name ?? formatPhone(f.phone), toPhone: f.phone, amountCents: -bal, reason: 'Poravnava (SplitFlik)' })}
+                        onClick={() => flik.open({ toName: f.name ?? formatPhone(f.phone), toPhone: f.phone, amountCents: -bal, reason: 'Poravnava (SplitFlik)', ...(f.avatarUrl ? { avatarUrl: f.avatarUrl } : {}) })}
                       >
                         Plačaj
                       </Button>

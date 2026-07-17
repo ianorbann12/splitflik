@@ -8,6 +8,8 @@ import { getLocalProfile, setLocalProfile } from '../data/profile';
 import { loadFriends, useFriends } from '../data/friends';
 import { avatarSrcProp } from '../data/people';
 import { newInviteCode, setSession, store, useStore } from '../data/store';
+import { maxMembers } from '../data/plan';
+import { openSubscription } from '../data/subscription';
 import { Avatar, BottomSheet, Button, ConfirmDialog, FieldLabel, Segmented, Select, TextField } from '../ui/kit';
 import { IconCheck, IconLogout, IconPlus, IconUsers } from '../ui/icons';
 
@@ -197,7 +199,16 @@ export function GroupSwitcher({
   };
 
   const toggleFriend = (phone: string) =>
-    setSelected((cur) => (cur.includes(phone) ? cur.filter((x) => x !== phone) : [...cur, phone]));
+    setSelected((cur) => {
+      if (cur.includes(phone)) return cur.filter((x) => x !== phone);
+      if (1 + cur.length >= maxMembers()) {
+        // +1 for you (the founder); free plan caps the group at maxMembers().
+        store.toast(`Brezplačno do ${maxMembers()} oseb v skupini. Nadgradi na Plus.`);
+        openSubscription();
+        return cur;
+      }
+      return [...cur, phone];
+    });
 
   const title = view === 'create' ? 'Nova skupina' : view === 'join' ? 'Pridruži se skupini' : 'Tvoje skupine';
   const needIdentity = !(profile?.name && profile.phone);

@@ -138,7 +138,12 @@ one-tap **copy** the recipient's phone number, the plain amount (`"12,15"`) and
 the payment reason to the clipboard (`copyText`/`copyAmount`), link to the NLB
 Pay store pages, and show short "paste it in NLB Pay" steps — while keeping the
 Slovenian disclaimer (`FLIK_DISCLAIMER`) visible at all times. Never render or
-accept card data.
+accept card data — **except** the explicitly-simulated "SplitFlik Plus"
+checkout (`SubscriptionSheet`), a demo that offers a fake test card, warns
+against real details, and stores/transmits nothing (a deliberate,
+product-requested override of the no-card-data rule for that demo surface
+only). Free vs paid tier limits (weekly receipt quota, group size, ads) live
+client-side in `src/app/data/plan.ts`.
 
 `openPaymentApp(app)` opens the user's chosen wallet — **NLB Pay** *or* the
 standalone **Flik Pay** app (`PAY_APPS`). On Android it launches the installed

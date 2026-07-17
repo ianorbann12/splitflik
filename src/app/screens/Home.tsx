@@ -2,19 +2,35 @@
 // The active group is optional: with none, we prompt to create or join one.
 import { useSession, useStore } from '../data/store';
 import { friendBalances, outingExpenses, outingGrandTotal, summarize } from '../data/derive';
-import { firstName } from '../data/people';
+import { avatarSrcProp, firstName } from '../data/people';
 import { getLocalProfile } from '../data/profile';
 import { formatEur } from '../format';
 import { PAGE_PADDING } from '../ui/AppShell';
-import { Button, Card, EmptyState } from '../ui/kit';
+import { Avatar, Button, Card, EmptyState } from '../ui/kit';
+import { AdBanner } from '../ui/Ads';
 import { IconChevronRight, IconReceipt, IconUsers } from '../ui/icons';
 
-function Header({ name, onNewActivity }: { name: string; onNewActivity?: () => void }) {
+function Header({
+  name,
+  id,
+  avatarUrl,
+  onNewActivity,
+}: {
+  name: string;
+  id: string;
+  avatarUrl?: string;
+  onNewActivity?: () => void;
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-      <div>
-        <div style={{ font: '400 15px/1.2 Rubik', color: 'var(--text-sec)' }}>Dober dan 👋</div>
-        <div style={{ font: '700 26px/1.15 Rubik', color: 'var(--text)', marginTop: 3 }}>Živjo, {name}!</div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+        <Avatar name={name} id={id} size={46} {...avatarSrcProp(avatarUrl)} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ font: '400 14px/1.2 Rubik', color: 'var(--text-sec)' }}>Dober dan 👋</div>
+          <div style={{ font: '700 23px/1.15 Rubik', color: 'var(--text)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Živjo, {name}!
+          </div>
+        </div>
       </div>
       {onNewActivity ? (
         <button
@@ -54,16 +70,18 @@ export function Home({
   const state = useStore();
   const session = useSession();
   const meId = session?.personId ?? '';
-  const profileName = getLocalProfile()?.name;
+  const profile = getLocalProfile();
 
   const group = state.group;
   const me = state.people.find((p) => p.id === meId);
-  const greetName = me ? firstName(me.name) : profileName ? firstName(profileName) : 'prijatelj';
+  const greetName = me ? firstName(me.name) : profile?.name ? firstName(profile.name) : 'prijatelj';
+  const meAvatar = me?.avatarUrl ?? profile?.avatarUrl;
+  const headerId = meId || 'me';
 
   if (!group) {
     return (
       <div style={{ padding: PAGE_PADDING }}>
-        <Header name={greetName} />
+        <Header name={greetName} id={headerId} {...(meAvatar ? { avatarUrl: meAvatar } : {})} />
         <div style={{ marginTop: 40 }}>
           <EmptyState
             icon={<IconUsers size={30} color="var(--text-sec)" />}
@@ -84,7 +102,7 @@ export function Home({
 
   return (
     <div style={{ padding: PAGE_PADDING }}>
-      <Header name={greetName} onNewActivity={onNewActivity} />
+      <Header name={greetName} id={headerId} onNewActivity={onNewActivity} {...(meAvatar ? { avatarUrl: meAvatar } : {})} />
       <GroupChip label={group.name} onClick={onOpenGroups} />
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 22 }}>
@@ -97,6 +115,8 @@ export function Home({
           <div style={{ font: '600 20px/1 Rubik', color: 'var(--pend)' }}>{formatEur(waitCents)}</div>
         </Card>
       </div>
+
+      <AdBanner style={{ marginBottom: 22 }} />
 
       <div style={{ font: '600 18px/1.2 Rubik', color: 'var(--text)', marginBottom: 12 }}>Aktivnosti</div>
 

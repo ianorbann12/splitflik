@@ -10,6 +10,9 @@ import { formatEur } from '../../format';
 import { useFlik } from '../../ui/FlikSheet';
 import { Avatar, BottomSheet, Button, Card, ConfirmDialog, EmptyState, FieldLabel, Segmented, Sheet, TextField } from '../../ui/kit';
 import { IconCheck, IconCopy, IconPlus, IconQr, IconReceipt, IconShare } from '../../ui/icons';
+import { AdInterstitial } from '../../ui/Ads';
+import { adsEnabled, maxMembers } from '../../data/plan';
+import { openSubscription } from '../../data/subscription';
 import { QrSheet } from '../../ui/QrSheet';
 import { StepAssign } from './StepAssign';
 
@@ -31,6 +34,7 @@ export function ActivityFlow({
   const [outingId, setOutingId] = useState<string | null>(initialOutingId ?? null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [settledCycle, setSettledCycle] = useState<number | null>(null);
+  const [adOpen, setAdOpen] = useState(false);
 
   const outing = state.outings.find((o) => o.id === outingId) ?? null;
   const participants = outing
@@ -71,6 +75,7 @@ export function ActivityFlow({
   };
 
   return (
+    <>
     <Sheet title={title} onBack={back}>
       {step === 'new' && group ? (
         <StepNew group={group} people={state.people} meId={meId} onCreate={handleCreate} />
@@ -142,6 +147,7 @@ export function ActivityFlow({
             store.settleOuting(outing, drafts);
             store.toast('Zahtevki poslani');
             setStep('sent');
+            if (adsEnabled()) setAdOpen(true); // full-screen 10s ad after finishing (free plan)
           }}
         />
       ) : null}
@@ -150,6 +156,8 @@ export function ActivityFlow({
         <StepSent outing={outing} settledCycle={settledCycle} meId={meId} onDone={onClose} />
       ) : null}
     </Sheet>
+      {adOpen ? <AdInterstitial onClose={() => setAdOpen(false)} /> : null}
+    </>
   );
 }
 
@@ -167,12 +175,23 @@ function StepNew({
   onCreate: (name: string, ids: string[]) => void;
 }) {
   const [name, setName] = useState('');
-  const [selected, setSelected] = useState<string[]>(people.map((p) => p.id));
+  const [selected, setSelected] = useState<string[]>(() => {
+    const max = maxMembers();
+    return (max === Infinity ? people : people.slice(0, max)).map((p) => p.id);
+  });
   const [showQr, setShowQr] = useState(false);
   const url = inviteUrl(group.inviteCode);
 
   const toggle = (id: string) =>
-    setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+    setSelected((cur) => {
+      if (cur.includes(id)) return cur.filter((x) => x !== id);
+      if (cur.length >= maxMembers()) {
+        store.toast(`Brezplačno do ${maxMembers()} oseb v aktivnosti. Nadgradi na Plus.`);
+        openSubscription();
+        return cur;
+      }
+      return [...cur, id];
+    });
 
   const copyCode = async () => {
     try {
@@ -328,7 +347,15 @@ function StepActivity({
   const [selectedNew, setSelectedNew] = useState<string[]>([]);
 
   const toggleNew = (id: string) =>
-    setSelectedNew((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+    setSelectedNew((cur) => {
+      if (cur.includes(id)) return cur.filter((x) => x !== id);
+      if (participants.length + cur.length >= maxMembers()) {
+        store.toast(`Brezplačno do ${maxMembers()} oseb v aktivnosti. Nadgradi na Plus.`);
+        openSubscription();
+        return cur;
+      }
+      return [...cur, id];
+    });
 
   return (
     <div>
@@ -650,6 +677,9 @@ function StepSent({
                         amountCents: s.amountCents,
                         reason: outing.name,
                         settlementId: s.id,
+                        ...(avatarUrlOf(state.people, s.toId)
+                          ? { avatarUrl: avatarUrlOf(state.people, s.toId) as string }
+                          : {}),
                       })
                     }
                   >

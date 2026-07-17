@@ -13,6 +13,8 @@ import { setSession, store, useSession, useStore } from './data/store';
 import { loadFriends } from './data/friends';
 import { loadRequests, useIncomingRequests } from './data/friendRequests';
 import { clearLocalProfile, getLocalProfile } from './data/profile';
+import { useSubscriptionOpen } from './data/subscription';
+import { SubscriptionSheet } from './screens/SubscriptionSheet';
 import { notifications } from './data/derive';
 import { useNotifReadAt } from './data/uiPrefs';
 import { Home } from './screens/Home';
@@ -127,6 +129,7 @@ function MainApp({ joinCode }: { joinCode?: string }) {
 
   const { unreadCount } = notifications(state, meId, readAt);
   const incoming = useIncomingRequests();
+  const subOpen = useSubscriptionOpen();
   const myPhone = getLocalProfile()?.phone ?? state.people.find((p) => p.id === meId)?.phone ?? '';
 
   useEffect(() => {
@@ -190,6 +193,7 @@ function MainApp({ joinCode }: { joinCode?: string }) {
           onClose={() => setSwitcher({ open: false })}
         />
       ) : null}
+      {subOpen ? <SubscriptionSheet /> : null}
     </>
   );
 }
